@@ -1,0 +1,43 @@
+<html>
+    <head>
+        <title>Hello MEI World!</title>
+        <script src="http://www.verovio.org/javascript/latest/verovio-toolkit-light.js" type="text/javascript" ></script>
+        <!-- We also use jQuery for this example -->
+        <script src="http://www.verovio.org/javascript/jquery.min.js" type="text/javascript" ></script>    
+    </head>
+    <body>
+
+        <p id="demo"></p>
+
+        <!-- The div where we are going to insert the SVG -->
+        <div id="output"/>
+        <script type="text/javascript">
+          var options = JSON.stringify({
+              pageHeight: 4000,
+              pageWidth: 2000,
+              ignoreLayout: 2,
+              border: 20,
+              scale: 40
+          });
+          var vrvToolkit = new verovio.toolkit();
+          var testMEI;
+          var testSVG;
+          vrvToolkit.setOptions(options);
+          /* Load the file using a HTTP GET */
+          $.get( "http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei", function( data ) {
+            var svg = vrvToolkit.renderData( data + "\n", "" );
+            testMEI = data;
+            //var svg = ""
+            testSVG = svg;
+            $("#output").html(svg);
+          }, 'text');
+
+          var parser = new DOMParser();
+          var xmlDoc = parser.parseFromString(testMEI,"text/xml");
+          document.getElementById("demo").innerHTML = xmlDoc.getElementsByTagName("title");
+
+
+
+        </script>
+    </body>
+</html>
