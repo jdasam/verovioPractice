@@ -7,10 +7,12 @@
     </head>
     <body>
 
+        <input type="number" id="measureNumber">
         <p id="demo"></p>
 
         <!-- The div where we are going to insert the SVG -->
         <div id="output"/>
+
         <script type="text/javascript">
           var options = JSON.stringify({
               pageHeight: 4000,
@@ -22,19 +24,212 @@
           var vrvToolkit = new verovio.toolkit();
           var testMEI;
           var testSVG;
+          var svg
+          var parser = new DOMParser();
+          var xmlDoc;
+          var xmlSvg;
+          var parseOutput;
+          var xmlid;
           vrvToolkit.setOptions(options);
+          var highlightSvg = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+          var page = 1;
+
+          //http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei
           /* Load the file using a HTTP GET */
-          $.get( "http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei", function( data ) {
-            var svg = vrvToolkit.renderData( data + "\n", "" );
+          $.get( "http://www.verovio.org/examples/downloads/Chopin_Etude_op.10_no.9.mei", function( data ) {
+            vrvToolkit.loadData(data);
+
+            //var svg = vrvToolkit.renderData( data + "\n", "" );
+            load_page();
+
             testMEI = data;
-            //var svg = ""
             testSVG = svg;
-            $("#output").html(svg);
+
+            xmlDoc = $.parseXML(data);
+  
+
+
+            parseOutput = parseMeasure(xmlDoc, 3)
+
           }, 'text');
 
-          var parser = new DOMParser();
-          var xmlDoc = parser.parseFromString(testMEI,"text/xml");
-          document.getElementById("demo").innerHTML = xmlDoc.getElementsByTagName("title");
+
+
+          $(window).keyup(function(event){
+            // We need to make sure not to capture event on text fields
+            if ( $(event.target).hasClass('form-control') ) {
+                return;
+            }
+            if ( event.ctrlKey && (event.keyCode == 37) ) {
+                first_page();
+            }
+            else if ( event.keyCode == 37 ) {
+                prev_page();
+            }
+            else if ( event.ctrlKey && (event.keyCode == 39) ) {
+                last_page();
+            }
+            else if ( event.keyCode == 39 ) {
+                next_page();
+            }
+          });
+
+
+
+
+          function parseMeasure(xml, measureNumber)
+          {
+            var $xml = $(xml),
+            xmlid = $xml.find('measure[n="' + measureNumber + '"]')[0].getAttribute("xml:id");
+            return xmlid
+          }
+
+          function detectMeasureInSvg(measures){
+            for(var i = 0; i<measures.length; i++){
+              var positionList = [];
+              var pathArray = measures[i].getElementsByTagName("path");
+              var measureId = measures[i].getAttribute("id");
+
+              for(var j =0; j<pathArray.length; j++){
+                var position = pathArray[j].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+                for (var k = 0; k<position.length; k++){
+                  position[k] = position[k] * 1;
+                }
+                positionList.push(position)                        
+              }
+
+              /*
+              for(var j=1; j<measures[i].childNodes.length; j=j+2){
+                if(measures[i].childNodes[j].getAttribute("class")=="staff"){
+                  for(var k=1; k<measures[i].childNodes[j].childNodes.length; k=k+2){
+                    console.log(i,j,k)
+                    var position = measures[i].childNodes[j].childNodes[k].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+                    for (var l = 0; l<position.length; l++){
+                      position[l] = position[l] * 1;
+                    }
+                    positionList.push(position)                
+                  }
+                }
+              }
+              */
+              
+              var minmaxPos = [positionList[0][0],positionList[0][1],0,0]
+
+              for (var l = 0; l<positionList.length; l++){
+                if (positionList[l][0] < minmaxPos[0]) minmaxPos[0] = positionList[l][0];
+                if (positionList[l][1] < minmaxPos[1]) minmaxPos[1] = positionList[l][1];
+                if (positionList[l][2] > minmaxPos[2]) minmaxPos[2] = positionList[l][2];
+                if (positionList[l][3] > minmaxPos[3]) minmaxPos[3] = positionList[l][3];
+              }
+
+              var measureAreaSvg = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+              measureAreaSvg.setAttribute("x", minmaxPos[0].toString());
+              measureAreaSvg.setAttribute('y', minmaxPos[1].toString());
+              measureAreaSvg.setAttribute('width', (minmaxPos[2] - minmaxPos[0]).toString());
+              measureAreaSvg.setAttribute('height', (minmaxPos[3] - minmaxPos[1]).toString());
+              measureAreaSvg.style.stroke = 'red';
+              measureAreaSvg.style.strokeWidth = 3;
+              measureAreaSvg.style.fillOpacity = 0.05;
+              measureAreaSvg.id = measureId;
+
+              measureAreaSvg.addEventListener("click", measureClick);
+
+
+              $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(measureAreaSvg)
+            }
+          }
+
+
+          $(measureNumber).change(function() {
+            xmlid = parseMeasure(xmlDoc, $(measureNumber).val());
+            page = vrvToolkit.getPageWithElement(xmlid);
+
+            load_page();
+            highlightingMeausre(xmlid);
+
+          });
+          
+        
+
+          //$(output)[0].addEventListener("mouseover", mouseOver);
+
+
+          function mouseOver() {
+              console.log("mouse over");
+          }
+
+          function measureClick(){
+            var selectedMeasure = $(xmlDoc).find('measure[xml\\:id="'+this.id+'"]')[0].getAttribute('n');
+            $(measureNumber).val(selectedMeasure);
+            highlightingMeausre(this.id);
+
+          }
+
+          function highlightingMeausre(xmlid){
+            var svgData = $(xmlSvg).find('g[id= "'+ xmlid + '"]').find("path");
+            var positionList = [];
+            for (var i = 0; i<svgData.length; i++){
+              var position = svgData[i].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+              for (var j = 0; j<position.length; j++){
+                position[j] = position[j] * 1;
+              }
+              positionList.push(position)
+
+            }
+            var minmaxPos = [positionList[0][0],positionList[0][1],0,0]
+
+            for (var i = 0; i<positionList.length; i++){
+              if (positionList[i][0] < minmaxPos[0]) minmaxPos[0] = positionList[i][0];
+              if (positionList[i][1] < minmaxPos[1]) minmaxPos[1] = positionList[i][1];
+              if (positionList[i][2] > minmaxPos[2]) minmaxPos[2] = positionList[i][2];
+              if (positionList[i][3] > minmaxPos[3]) minmaxPos[3] = positionList[i][3];
+            }
+
+            highlightSvg.setAttribute("x", minmaxPos[0].toString());
+            highlightSvg.setAttribute('y', minmaxPos[1].toString());
+            highlightSvg.setAttribute('width', (minmaxPos[2] - minmaxPos[0]).toString());
+            highlightSvg.setAttribute('height', (minmaxPos[3] - minmaxPos[1]).toString());
+            highlightSvg.style.stroke = 'red';
+            highlightSvg.style.strokeWidth = 5;
+            highlightSvg.style.fillOpacity = 0.1;
+
+
+            //$(output)[0].appendChild(highlightSvg)
+            $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(highlightSvg)
+
+            //$(output)[0].insertBefore(highlightSvg, $(output)[0].childNodes[0].childNodes[3].childNodes[1].childNodes[1])
+
+
+          }
+
+
+          function next_page() {
+            if (page >= vrvToolkit.getPageCount()) {
+                return;
+            }
+
+            page = page + 1;
+            load_page();
+          };
+
+          function prev_page() {
+            if (page <= 1) {
+                return;
+            }
+
+            page = page - 1;
+            load_page();
+          };
+
+          function load_page() {
+              svg = vrvToolkit.renderPage(page, "");
+              $("#output").html(svg);
+
+              xmlSvg = $.parseXML(svg);
+              var measures = $(xmlSvg).find("g[class=measure]")
+              detectMeasureInSvg(measures)     
+
+          };          
 
 
 
