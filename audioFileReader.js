@@ -9,7 +9,7 @@ var increaseValueSave;
 var userRecord = [];
 var currentFileIndex = 1;
 var theData = [ [],[],[],[],[],[]  ];
-
+var midiFile;
 
 var csvA =[];
 var csvB =[];
@@ -65,38 +65,13 @@ window.onload=function(){
 	});
 
 
-	var getSound = new XMLHttpRequest();
-	var getSoundB = new XMLHttpRequest();
-
-
 	getAudio("audioA.mp3");
 	getAudio("audioB.mp3");
 
+	getMidi("pathetique_3.mid");
+
 	currentFileIndex = 1;
 
-	// getSound.responseType = "arraybuffer";
-	// getSound.onload = function() {
-	// 	context.decodeAudioData(getSound.response, audioFileDecoded, audioFileDecodeFailed)
-	// 	console.log("done!");
-	// 	};
-	// getSound.open("GET", "audioA.mp3", true);
-	// getSound.send();
-
-	// getSoundB.open("GET", "audioB.mp3", true);
-	// getSoundB.responseType = "arraybuffer";
-	// getSoundB.onload = function() {
-	// 	context.decodeAudioData(getSoundB.response, audioFileDecodedB, audioFileDecodeFailed)
-	// 	};
-	// getSoundB.send();
-
-	//getSound.open("GET", "audioB.mp3", true);
-	//getSound.send();
-
-	// $.get( "audioB.mp3", function (data){
-	// 	console.log(typeof(data))
-	// 	context.decodeAudioData(data, audioFileDecoded, audioFileDecodeFailed)
-	// 	console.log("done!");		
-	// })
 
 
 
@@ -345,4 +320,26 @@ function getAudio(url)
     xmlhttp.send();
 }
 
+
+function getMidi(url)
+{
+    var xmlhttp
+
+    if (window.ActiveXObject)
+    {
+     xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    else if (window.XMLHttpRequest)
+    {
+     xmlhttp = new XMLHttpRequest();
+    } 
+    xmlhttp.responseType = "arraybuffer";
+    xmlhttp.onload = function()
+    {
+		midiFile = new MIDIFile(xmlhttp.response);
+    }
+
+    xmlhttp.open("GET",url,true);
+    xmlhttp.send();
+}
 
