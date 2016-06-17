@@ -3,10 +3,40 @@
         <title>Hello MEI World!</title>
         <script src="http://www.verovio.org/javascript/latest/verovio-toolkit-light.js" type="text/javascript" ></script>
         <!-- We also use jQuery for this example -->
-        <script src="http://www.verovio.org/javascript/jquery.min.js" type="text/javascript" ></script>    
+        <script src="http://www.verovio.org/javascript/jquery.min.js" type="text/javascript" ></script>
+        <script src="MIDIFile.js" type="text/javascript" ></script>    
+        <script src="papaparse.js" type="text/javascript"></script>
+        <script src="audioFileReader.js" type="text/javascript"></script>
+
+        <div style="width:600; height:30">
+          <canvas id="plottingCanvas" width="600" height="30" style="position:absolute; left:0 px; top:0 px; z-index:1;"></canvas>
+          <canvas id="interfaceCanvas" width="600" height="30" style="position:absolute; left:0 px; top:0 px; z-index:2;"></canvas>
+        </div>
+
+        <div id="menu">
+          <button class="btn btn-primary" data-action="pause">
+            <i class="glyphicon glyphicon-pause"></i>
+            Pause
+          </button>
+          <button class="btn btn-primary" data-action="play">
+            <i class="glyphicon glyphicon-play"></i>
+            Play
+          </button>
+          <button class="btn btn-primary" data-action="stop">
+            <i class="glyphicon glyphicon-stop"></i>
+            Stop
+          </button>
+          <button class="btn btn-primary" data-action="switchAudio">
+            <i class="glyphicon glyphicon-play"></i>
+            Switch
+          </button>
+        </div>
+
+        
+
+
     </head>
     <body>
-
         <input type="number" id="measureNumber">
         <p id="demo"></p>
 
@@ -36,7 +66,9 @@
 
           //http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei
           /* Load the file using a HTTP GET */
-          $.get( "http://www.verovio.org/examples/downloads/Chopin_Etude_op.10_no.9.mei", function( data ) {
+
+
+          $.get( "pathetique_3.mei", function( data ) {
             vrvToolkit.loadData(data);
 
             //var svg = vrvToolkit.renderData( data + "\n", "" );
@@ -52,6 +84,7 @@
             parseOutput = parseMeasure(xmlDoc, 3)
 
           }, 'text');
+
 
 
 
@@ -145,6 +178,7 @@
             page = vrvToolkit.getPageWithElement(xmlid);
 
             load_page();
+            move2Measure($(measureNumber).val(), theData[currentFileIndex][1], theData[0]);
             highlightingMeausre(xmlid);
 
           });
@@ -161,8 +195,8 @@
           function measureClick(){
             var selectedMeasure = $(xmlDoc).find('measure[xml\\:id="'+this.id+'"]')[0].getAttribute('n');
             $(measureNumber).val(selectedMeasure);
+            move2Measure(selectedMeasure, theData[currentFileIndex][1], theData[0]);
             highlightingMeausre(this.id);
-
           }
 
           function highlightingMeausre(xmlid){
@@ -200,6 +234,7 @@
             //$(output)[0].insertBefore(highlightSvg, $(output)[0].childNodes[0].childNodes[3].childNodes[1].childNodes[1])
 
 
+
           }
 
 
@@ -229,7 +264,42 @@
               var measures = $(xmlSvg).find("g[class=measure]")
               detectMeasureInSvg(measures)     
 
-          };          
+          };
+
+
+
+          function Menu(elem) {
+            elem.onclick = function(e) {
+              var target = e && e.target || event.srcElement
+              var action = target.getAttribute('data-action')
+              if (action=="play" && playingOn == false) {
+                playSound(theData[currentFileIndex][0]);
+              }
+              else if(action=="pause") {
+                pause();
+              }
+              else if(action=="stop") {
+                stop();
+              }
+              else if(action=="switchAudio"){
+                if(currentFileIndex==1) switchAudio(2);
+                else switchAudio(1);
+              }
+            }
+          }
+          new Menu(document.getElementById('menu'))
+
+
+
+          var plottingCanvasWidth = document.getElementById("plottingCanvas").width;
+          var plottingCanvasHeight = document.getElementById("plottingCanvas").height;
+
+          var canvas = document.getElementById("plottingCanvas")
+          var graphic_context = canvas.getContext("2d");
+          graphic_context.fillStyle= "#DCDCDC";
+          graphic_context.fillRect(0,0,canvas.width, canvas.height);
+
+
 
 
 
