@@ -85,7 +85,7 @@
 </head>
 <body>
 
-  <input type="number" id="measureNumber">
+  <input type="number" id="measureNumber"></input>
   <p id="demo"></p>
 
   <!-- The div where we are going to insert the SVG -->
@@ -127,9 +127,7 @@
 
       xmlDoc = $.parseXML(data);
 
-
-
-      parseOutput = parseMeasure(xmlDoc, 3)
+      console.log("mei loaded");
 
     }, 'text');
 

@@ -8,7 +8,7 @@ var playingB=false;
 var increaseValueSave;
 var userRecord = [];
 var currentFileIndex = 1;
-var theData = [ [],[],[],[],[],[]  ];
+var theData = [ [] ];
 var midiFile;
 var timeSignature =[];
 
@@ -16,7 +16,7 @@ var csvA =[];
 var csvB =[];
 var csvMidi =[];
 
-var dir = "audioFile/";
+var sourceDir = "audioFile/";
 var fileextension = ".mp3";
 var fileList = [];
 
@@ -44,58 +44,33 @@ window.onload=function(){
 	var canvas = document.getElementById("progressCanvas");
 	canvas.addEventListener("mousedown", doMouseDown, false);
 	
-	getCsv('csvMidi.csv',0);
-	getCsv('csvA.csv',1);
-	getCsv('csvB.csv',2);
+	theData[0][1] = getCsv('beatIndex.csv');
+	//getCsv('csvA.csv',1);
+	//getCsv('csvB.csv',2);
 
-	// Papa.parse('csvMidi.csv', {
-	// 	download: true,
-	// 	dynamicTyping: true,
-	// 	complete: function(results) {
-	// 		theData[0] = results.data;
-	// 	}
-	// });
-
-	// Papa.parse('csvA.csv', {
-	// 	download: true,
-	// 	dynamicTyping: true,
-	// 	complete: function(results) {
-	// 		theData[1][1] = results.data;
-	// 		//console.log(csvA[0][0]);
-
-	// 	}
-	// });
-	
-	// Papa.parse('csvB.csv', {
-	// 	download: true,
-	// 	dynamicTyping: true,
-	// 	complete: function(results) {
-	// 		theData[2][1] = results.data;
-	// 	}
-	// });
-
-
-	getAudio("audioA.mp3");
-	getAudio("audioB.mp3");
 
 	getMidi("pathetique_3.mid");
-	//getMidi("bps83test.mid");
+	//getMidi("(midi).mid");
 
 
 	currentFileIndex = 1;
 
 
 	$.ajax({
-    url: dir,
+    url: sourceDir,
     success: function (data) {
         //List all .png file names in the page
-        console.log(document.getElementById("audioFile-buttons"));
+        var totalNumberOfRecords = 0;
         $(data).find("a:contains(" + fileextension + ")").each(function () {
+            totalNumberOfRecords++;
+            theData[totalNumberOfRecords]= [[],[] ];
             var fileName = this.href.split("/");
             var artistName = fileName[fileName.length-1].split(".")[0]
             var button='<button class="btn btn-default" id="'+artistName+'" >'+artistName+'</button>'
             $("#audioFile-buttons").append(button);
             fileList.push(artistName);
+
+            getAudio(sourceDir+artistName+".mp3")
         });
     },
     error: function(data){
@@ -117,16 +92,6 @@ window.requestAnimFrame = (function(callback) {
 
 
 
-
-
-function fileLoaded(e){
-	audioContext.decodeAudioData(e.target.result, audioFileDecoded, audioFileDecodeFailed);
-}
-
-function fileLoadedB(e){
-	audioContext.decodeAudioData(e.target.result, audioFileDecodedB, audioFileDecodeFailed);
-}
-
 function csvFileLoadedA(e){
 	Papa.parse(e.target.result);
 	console.log('midi file loaded?');
@@ -143,6 +108,7 @@ function audioFileDecoded(audioBuffer){
 	}
 
 	theData[i][0] = audioBuffer;
+	theData[i][1] = getCsv(sourceDir+fileList[i-1]+".csv");
 	
 	if(i==1) {
 		//playSound(audioBuffer);
@@ -258,11 +224,12 @@ function drawProgress(canvas){
     	startTime = audioContext.currentTime;
 
     	var measureNumber = time2Measure(startOffset, theData[currentFileIndex][1], theData[0][1]);
-
     	var xmlid = parseMeasure(xmlDoc, measureNumber);
-        page = vrvToolkit.getPageWithElement(xmlid);
+    	if (page != vrvToolkit.getPageWithElement(xmlid)){
+	        page = vrvToolkit.getPageWithElement(xmlid);
+	        load_page();    		
+    	}
 
-        load_page();
         highlightingMeausre(xmlid);
     }
     
@@ -310,7 +277,6 @@ function time2Measure(currentSecond, csvAudio, csvBeat){
 			if (timeSigZone + 1 == timeSignature.length) break;
 		}
 	}
-
 	var formerMeasure = 0;
 	if (timeSigZone != 0){
 		for(var j = 0; j<timeSigZone; j++){
@@ -318,6 +284,7 @@ function time2Measure(currentSecond, csvAudio, csvBeat){
 			formerMeasure = formerMeasure + (timeSignature[j+1][1] - timeSignature[j][1]) / beatInMeasure;
 		}
 	}
+
 
 	var beatInMeasure = timeSignature[timeSigZone][0].param1 / Math.pow(2, timeSignature[timeSigZone][0].param2 -2 );
 
@@ -330,10 +297,36 @@ function time2Measure(currentSecond, csvAudio, csvBeat){
 function measure2Time(currentMeasure, csvAudio, csvBeat){
 	var i = 0;
 
+	var timeSigZone = 0; 
+	if (timeSignature.length != 1){
+		while(currentMeasure > timeSignature[timeSigZone+1][2]){ 
+			timeSigZone++;
+			if (timeSigZone + 1 == timeSignature.length) break;
+		}
+	}
+
+	var formerBeat = 0;
+	var formerMeasure = 0;
+	if (timeSigZone != 0){
+		formerBeat = timeSignature[timeSigZone][1];
+		for(var j = 0; j<timeSigZone; j++){
+			var beatInMeasure = 480 * timeSignature[j][0].param1 / Math.pow(2, timeSignature[j][0].param2 -2 );
+			formerMeasure = formerMeasure + (timeSignature[j+1][1] - timeSignature[j][1]) / beatInMeasure;
+		}
+	}
+
+
+	var beatInMeasure = 480 * timeSignature[timeSigZone][0].param1 / Math.pow(2, timeSignature[timeSigZone][0].param2 -2 );
+
+	// currentMeasure - formerMeasure;   
+
+	// (csvBeat[i] - formerBeat) / ;
 
 	while( (currentMeasure-1) * 4 > csvBeat[i]){
 		i++;
 	}
+
+
 
 
 	var targetSecond = csvAudio[i];
@@ -394,13 +387,22 @@ function getMidi(url)
 		var midEvents = midiFile.getTrackEvents(0);
 		var j=0;
 		var absoluteTime = 0;
+		var timeSigMeasure = 0;
 		for (var i=0, len=midEvents.length; i<len; i++){
 			absoluteTime = absoluteTime + midEvents[i].delta;
 			if(midEvents[i].subtype == 88) {
-				timeSignature[j] = [midEvents[i], absoluteTime];
+				if(j>0){
+					timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( 480 * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ))
+				}
+				timeSignature[j] = [midEvents[i], absoluteTime, timeSigMeasure];
 				j++;
 			}
 		}
+
+
+
+
+
     }
 
     xmlhttp.open("GET",url,true);
@@ -408,19 +410,21 @@ function getMidi(url)
 }
 
 
-function getCsv(url, fileIndex){
+function getCsv(url){
+	var resultArray = [];
 
 	Papa.parse(url, {
 		download: true,
 		dynamicTyping: true,
 		complete: function(results) {
-			theData[fileIndex]=[ [], [] ];
+			// theData[fileIndex]=[ [], [] ];
 			for (var i=0, len=results.data.length; i<len; i++){
-				theData[fileIndex][1][i] = results.data[i][0]
+				resultArray[i] = results.data[i][0];
 			}
 		}
 	});
 
+	return resultArray;
 }
 
 
@@ -441,10 +445,11 @@ function binaryIndexOf(searchElement) {
     while (minIndex <= maxIndex) {
         currentIndex = (minIndex + maxIndex) / 2 | 0;
         currentElement = this[currentIndex];
+        //console.log([currentElement, minIndex, maxIndex])
  
         if (currentElement < searchElement  ) {
             minIndex = currentIndex + 1;
-            if (minIndex == maxIndex) return currentIndex;
+            if (minIndex == maxIndex && this[maxIndex]>searchElement) return currentIndex;
         }
         else if (currentElement > searchElement) {
             maxIndex = currentIndex - 1;
@@ -453,7 +458,7 @@ function binaryIndexOf(searchElement) {
             return currentIndex;
         }
     }
- 
-    return maxIndex;
+
+    return minIndex;
 }
 Array.prototype.binaryIndexOf = binaryIndexOf;
