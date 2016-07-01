@@ -16,7 +16,7 @@ var csvA =[];
 var csvB =[];
 var csvMidi =[];
 
-var sourceDir = "audioFile/";
+var sourceDir = "sourceFiles/";
 var fileextension = ".mp3";
 var fileList = [];
 
@@ -44,12 +44,12 @@ window.onload=function(){
 	var canvas = document.getElementById("progressCanvas");
 	canvas.addEventListener("mousedown", doMouseDown, false);
 	
-	theData[0][1] = getCsv('beatIndex.csv');
+	theData[0][1] = getCsv(sourceDir+'beatIndex.csv');
 	//getCsv('csvA.csv',1);
 	//getCsv('csvB.csv',2);
 
 
-	getMidi("pathetique_3.mid");
+	getMidi(sourceDir+"(midi).mid");
 	//getMidi("(midi).mid");
 
 
@@ -61,16 +61,17 @@ window.onload=function(){
     success: function (data) {
         //List all .png file names in the page
         var totalNumberOfRecords = 0;
+        var index =1;
         $(data).find("a:contains(" + fileextension + ")").each(function () {
             totalNumberOfRecords++;
             theData[totalNumberOfRecords]= [[],[] ];
             var fileName = this.href.split("/");
-            var artistName = fileName[fileName.length-1].split(".")[0]
-            var button='<button class="btn btn-default" id="'+artistName+'" >'+artistName+'</button>'
-            $("#audioFile-buttons").append(button);
+            var artistName = unescape(fileName[fileName.length-1].split(".")[0])
+
             fileList.push(artistName);
 
-            getAudio(sourceDir+artistName+".mp3")
+            getAudio(sourceDir+artistName+".mp3",index, artistName)
+            index++;
         });
     },
     error: function(data){
@@ -92,13 +93,6 @@ window.requestAnimFrame = (function(callback) {
 
 
 
-function csvFileLoadedA(e){
-	Papa.parse(e.target.result);
-	console.log('midi file loaded?');
-}
-
-
-
 function audioFileDecoded(audioBuffer){
 
 	var i = 1;
@@ -115,10 +109,6 @@ function audioFileDecoded(audioBuffer){
 		drawProgress(document.getElementById("progressCanvas"));
 	}
 	
-}
-function audioFileDecodedB(audioBuffer){
-
-	audioFileB = audioBuffer;
 }
 
 
@@ -162,12 +152,13 @@ function playSound(audioBuffer) {
 	sourceNode.buffer = audioBuffer;
 	sourceNode.start(0, startOffset % audioBuffer.duration);
 	playingOn = true;
+	drawProgress(document.getElementById("progressCanvas"));
 }
 
 function pause() {
 	sourceNode.stop();
 	// Measure how much time passed since the last pause.
-	startOffset += audioContext.currentTime - startTime;
+	if (playingOn) startOffset += audioContext.currentTime - startTime;
 	playingOn = false;
 }
 
@@ -209,12 +200,16 @@ function doMouseDown(e){
 
 function drawProgress(canvas){
 	var progress = canvas.getContext("2d");
+	var gradient = progress.createLinearGradient(0, 0, 170, 0);
+	gradient.addColorStop(0, "white");
+	gradient.addColorStop(1, "orange");
+
 	var currentProgressInX = startOffset * canvasWidth /theData[currentFileIndex][0].length * theData[currentFileIndex][0].sampleRate;
 	progress.clearRect(0, 0, canvas.width, canvas.height);
 
 	progress.beginPath();
 	progress.rect(0,0,currentProgressInX,canvas.height)
-	progress.fillStyle = "#000000"
+	progress.fillStyle = gradient;
 	progress.fill();
 
     progress.stroke();    
@@ -277,11 +272,12 @@ function time2Measure(currentSecond, csvAudio, csvBeat){
 			if (timeSigZone + 1 == timeSignature.length) break;
 		}
 	}
+
 	var formerMeasure = 0;
 	if (timeSigZone != 0){
 		for(var j = 0; j<timeSigZone; j++){
 			var beatInMeasure = 480 * timeSignature[j][0].param1 / Math.pow(2, timeSignature[j][0].param2 -2 );
-			formerMeasure = formerMeasure + (timeSignature[j+1][1] - timeSignature[j][1]) / beatInMeasure;
+			formerMeasure = formerMeasure + Math.floor( (timeSignature[j+1][1] - timeSignature[j][1]) / beatInMeasure);
 		}
 	}
 
@@ -316,20 +312,17 @@ function measure2Time(currentMeasure, csvAudio, csvBeat){
 	}
 
 
-	var beatInMeasure = 480 * timeSignature[timeSigZone][0].param1 / Math.pow(2, timeSignature[timeSigZone][0].param2 -2 );
+	var beatInMeasure = timeSignature[timeSigZone][0].param1 / Math.pow(2, timeSignature[timeSigZone][0].param2 -2 );
 
-	// currentMeasure - formerMeasure;   
+
+	var index = csvBeat.binaryIndexOf( (currentMeasure - formerMeasure -1 ) * beatInMeasure );
 
 	// (csvBeat[i] - formerBeat) / ;
 
-	while( (currentMeasure-1) * 4 > csvBeat[i]){
-		i++;
-	}
 
 
 
-
-	var targetSecond = csvAudio[i];
+	var targetSecond = csvAudio[index];
 	console.log(currentMeasure);
 
 	return targetSecond
@@ -344,7 +337,7 @@ function move2Measure(targetMeasure, csvAudio, csvBeat){
 }
 
 
-function getAudio(url)
+function getAudio(url, index, artistName)
 {
     var xmlhttp
 
@@ -359,7 +352,17 @@ function getAudio(url)
     xmlhttp.responseType = "arraybuffer";
     xmlhttp.onload = function()
     {
-		context.decodeAudioData(xmlhttp.response, audioFileDecoded, audioFileDecodeFailed)
+		context.decodeAudioData(xmlhttp.response, function(audioBuffer){
+			theData[index][0] = audioBuffer;
+			theData[index][1] = getCsv(sourceDir+fileList[index-1]+".csv");
+			var surName = artistName.split(",")[0]
+			if (index==1 ){
+				var button='<button class="btn btn-primary" id="'+unescape(artistName)+'" >'+surName+'</button>' 
+			} else{
+				var button='<button class="btn btn-default" id="'+unescape(artistName)+'" >'+surName+'</button>'
+			}
+            $("#audioFile-buttons").append(button);
+		}, audioFileDecodeFailed)
     }
 
     xmlhttp.open("GET",url,true);
@@ -418,7 +421,7 @@ function getCsv(url){
 		dynamicTyping: true,
 		complete: function(results) {
 			// theData[fileIndex]=[ [], [] ];
-			for (var i=0, len=results.data.length; i<len; i++){
+			for (var i=0, len=results.data.length; i<len-1; i++){
 				resultArray[i] = results.data[i][0];
 			}
 		}
@@ -442,7 +445,7 @@ function binaryIndexOf(searchElement) {
     	return 0;
     }
  
-    while (minIndex <= maxIndex) {
+    while (minIndex < maxIndex) {
         currentIndex = (minIndex + maxIndex) / 2 | 0;
         currentElement = this[currentIndex];
         //console.log([currentElement, minIndex, maxIndex])
