@@ -19,7 +19,19 @@
 
   <div id="sidebar">
     <h3> Composer</h3>
-    <h3> Piece name</h3>
+    <div class="dropdown">
+      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonComposer">Composer
+      <span class="caret"></span></button>
+      <ul class="dropdown-menu" id="composerUl">
+      </ul>
+    </div>
+    <h3> Music</h3>
+    <div class="dropdown">
+      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonPiece">Music
+      <span class="caret"></span></button>
+      <ul class="dropdown-menu" id="pieceUl">
+      </ul>
+    </div>
   </div>
 
   <div id="progressBar" style="height:50" >
@@ -118,12 +130,13 @@
   <div id="output"/>
 
   <script type="text/javascript">
+
     var options = JSON.stringify({
-        pageHeight: 2000,
+        pageHeight: 3000,
         pageWidth: 3000,
         ignoreLayout: 3,
         border: 50,
-        scale: 30,
+        scale: 35,
     });
     var vrvToolkit = new verovio.toolkit();
     var svg
@@ -138,20 +151,6 @@
 
     //http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei
     /* Load the file using a HTTP GET */
-
-
-    $.get( "sourceFiles/score.mei", function( data ) {
-      vrvToolkit.loadData(data);
-
-      //var svg = vrvToolkit.renderData( data + "\n", "" );
-      load_page();
-
-      xmlDoc = $.parseXML(data);
-
-      console.log("mei loaded");
-
-    }, 'text');
-
 
 
 
@@ -277,6 +276,7 @@
         positionList.push(position)
 
       }
+
       var minmaxPos = [positionList[0][0],positionList[0][1],0,0]
 
       for (var i = 0; i<positionList.length; i++){
