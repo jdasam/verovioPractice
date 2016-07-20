@@ -10,6 +10,7 @@ var midiFile;
 
 var timeSignature =[];
 var rptStructure =[];
+var measureBeat = [];
 
 var csvA =[];
 var csvB =[];
@@ -71,6 +72,7 @@ window.requestAnimFrame = (function(callback) {
 
 function loadFiles(urlAddress){
 
+	page = 1;
     $.get( urlAddress+"score.mei", function( data ) {
       vrvToolkit.loadData(data);
 
@@ -172,27 +174,43 @@ function loadSound(url) {
 
 
 function setupAudioNodes() {
-	// create a buffer source node
+  // create a buffer source node
 	sourceNode = audioContext.createBufferSource();
+  sourceNode2 = audioContext.createBufferSource();
+  gainNode1 = audioContext.createGain ?
+              audioContext.createGain() : audioContext.createGainNode();
+  gainNode2 = audioContext.createGain ?
+              audioContext.createGain() : audioContext.createGainNode();
 	// and connect to destination
-	sourceNode.connect(audioContext.destination);
-	
+	sourceNode.connect(gainNode1);
+  gainNode1.connect(audioContext.destination);
+  // create a buffer source node
+	// and connect to destination
+	sourceNode2.connect(gainNode2);
+  gainNode2.connect(audioContext.destination);
 }
+
 
 
 //audio file playback control
 
+
 function playSound(audioBuffer) {
 	setupAudioNodes(); //이거 사실 한번만 호출해 두면 될 것 같은데...
 	startTime = audioContext.currentTime;
-	sourceNode.buffer = audioBuffer;
-	sourceNode.start(0, startOffset % audioBuffer.duration);
+  sourceNode.buffer = audioBuffer;
+  sourceNode2.buffer = audioBuffer;
+  gainNode1.gain.value = 0.5;
+  gainNode2.gain.value = 0.0;
+  sourceNode.start(0, startOffset % audioBuffer.duration);
+  sourceNode2.start(0, startOffset % audioBuffer.duration);
 	playingOn = true;
 	drawProgress(document.getElementById("progressCanvas"));
 }
 
 function pause() {
 	sourceNode.stop();
+  	sourceNode2.stop();
 	// Measure how much time passed since the last pause.
 	if (playingOn) startOffset += audioContext.currentTime - startTime;
 	playingOn = false;
@@ -200,25 +218,47 @@ function pause() {
 
 function stop() {
 	sourceNode.stop();
+  	sourceNode2.stop();
 	startOffset = 0;
 	playingOn = false;
 }
 
 function switchAudio(targetIndex){
-	if(playingOn) sourceNode.stop();
-	setupAudioNodes();
-	startTime = audioContext.currentTime;
+	if(playingOn) {
+    sourceNode2.stop();
+    sourceNode2 = audioContext.createBufferSource();
+    sourceNode2.buffer = sourceNode.buffer;
+    gainNode2 = audioContext.createGain();
+    sourceNode2.connect(gainNode2);
+    gainNode2.connect(audioContext.destination);
+    //gainNode2.gain.value = 0.0;
+    sourceNode2.start(0, startOffset % sourceNode.buffer.duration);
+    sourceNode.stop();
+  }
 
-	sourceNode.buffer = theData[targetIndex][0];
-	if (startOffset) startOffset = indexInterpolation(startOffset, theData[currentFileIndex][1], theData[targetIndex][1]);
-	if (isNaN(startOffset)) startOffset = 0;
+  sourceNode = audioContext.createBufferSource();
+  gainNode1 = audioContext.createGain();
 
-	sourceNode.start(0, startOffset % theData[targetIndex][0].duration);
-	playingOn = true;
+	startTime = audioContext.currentTime; // startOffset(상대시간)을 기록하기 위해서는 재생시작 절대시간 startTime을 설정해야함
 
-	currentFileIndex = targetIndex;
+  sourceNode.connect(gainNode1);
+  gainNode1.connect(audioContext.destination);
+
+	sourceNode.buffer = theData[targetIndex][0]; // setupAudioNodes로 다시 만든 sourceNode의 버퍼를 사용자가 선택한 녹음의 오디오 버퍼로 설정
+	if (startOffset) startOffset = indexInterpolation(startOffset, theData[currentFileIndex][1], theData[targetIndex][1]); // 재생시간을 앞서 멈췄던 부분과 같은 음표로 조정
+	if (isNaN(startOffset)) startOffset = 0; // 에러 방지용
+
+
+	sourceNode.start(0, startOffset % theData[targetIndex][0].duration); // startOffset 위치에서 소스노드를 시작
+  //gainNode1.gain.value = 0.5;
+  gainNode2.gain.setValueAtTime(0.5, audioContext.currentTime);
+  gainNode1.gain.setValueAtTime(0.0001, audioContext.currentTime);
+  gainNode2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 5);
+  gainNode1.gain.exponentialRampToValueAtTime(0.5, audioContext.currentTime + 0.5);
+	playingOn = true; //재생상태 갱신
+
+	currentFileIndex = targetIndex; //현재 선택한 녹음 인덱스 갱신
 }
-
 
 function doMouseDown(e){
 	//var currentTime = remainingSeconds;
@@ -319,9 +359,10 @@ function measure2Time(currentMeasure, csvAudio, csvBeat){
 	    pos = rptStructure.indexOf(currentMeasure*1, pos + 1);
 	}
 
+	var indexFloor = 0;
 	if (candidates.length > 1){
 		var playingMeasure = time2orderedMeasure(startOffset, theData[currentFileIndex][1], theData[0][1]);
-		var indexFloor = candidates.binaryIndexOf(playingMeasure);
+		indexFloor = candidates.binaryIndexOf(playingMeasure);
 
 		if(indexFloor != candidates.length-1){
 			var floorDif = playingMeasure - candidates[indexFloor];
@@ -407,6 +448,8 @@ function getMidi(url)
     xmlhttp.responseType = "arraybuffer";
     xmlhttp.onload = function()
     {
+		
+    	timeSignature = [];
 		midiFile = new MIDIFile(xmlhttp.response);
 		console.log("get midi work");
 
