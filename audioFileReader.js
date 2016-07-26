@@ -4,6 +4,9 @@ var startOffset = 0;
 var startTime = 0;
 var audioFile;
 var playingOn=false;
+var loadCompleted = false;
+var loadInterupted = false;
+
 var currentFileIndex = 1;
 var theData = [ [] ];
 var midiFile;
@@ -12,18 +15,18 @@ var timeSignature =[];
 var rptStructure =[];
 var measureBeat = [];
 
-var csvA =[];
-var csvB =[];
-var csvMidi =[];
 
-var sourceDir = "sourceFiles/";
+var sourceDir = "sourceFilesExample/";
 var fileextension = ".csv";
-var fileList = [];
+var loadedFileNumber = 0;
 
 var composerArray = [];
 var pieceList = []; 
+var artistList = [];
+var artistListOfPiece = ["Biret, Idil", "Cortot, Alfred", "Cortot, Alfred (2)", "Haas, Monique", "Harasiewicz, Adam", "Horowitz, Vladimir", "Lisiecki, Jan", "Lugansky, Nikolai", "Perahia, Murray", "Pollini, Maurizio", "Richter, Sviatoslav", "Richter, Sviatoslav (2)", "Shebanova, Tatiana", "Vasary, Tamas"];
+var selectedAudioList = [];
+var selectedAudioPrev = [];
 // var pieceAddress =[];
-
 
 
 var contextClass = (window.AudioContext || 
@@ -45,10 +48,15 @@ if (contextClass) {
 
 
 window.onload=function(){
+	$("#artistSelect").multiselect({
+		noneSelectedText: "Select Artists",
+		height: 300,
+	});
+
 
 	var items = [];
 	
-	$.getJSON( "data.json", function( data ) {
+	$.getJSON( "dataWithFile.json", function( data ) {
 	  items.push(data);
 	  folder2Composer(items[0]);
 	});
@@ -71,8 +79,15 @@ window.requestAnimFrame = (function(callback) {
 })();
 
 function loadFiles(urlAddress){
+	stop();
+	$.xhrPool.abortAll;
 
 	page = 1;
+
+	makeArtistSelectOption(artistListOfPiece, "#artistSelect")
+
+
+
     $.get( urlAddress+"score.mei", function( data ) {
       vrvToolkit.loadData(data);
 
@@ -94,43 +109,65 @@ function loadFiles(urlAddress){
 
 
 	theData = [ [] ];
-	fileList = [];
 
 	theData[0][1] = getCsv(urlAddress+'beatIndex.csv');
 
 
+	// for (var i =0, len = artistListOfPiece.length; i<len; i++){
+	// 	theData[i+1] = [ [],[] ];
+	// 	getAudio(urlAddress,i+1,artistListOfPiece[i])
+	// }
 
+
+	var artistNameList = [];
 	currentFileIndex = 1;
 
+	// $.ajax({
+ //    // beforeSend: function (xhr) {
+ //    //     xhr.setRequestHeader('Authorization', 'Basic ' + btoa('myuser:mypswd'));
+ //    // },
+	//     url: urlAddress,
+	//     success: function (data) {
+	//         //List all .png file names in the page
+	//         var totalNumberOfRecords = 0;
+	//         var index =1;
+	//         $(data).find("a").each(function(){
+	//         	if(this.href.split('.').pop() == "csv"){
+	//         		var fileName = this.href.split("/");
+	// 	            var artistName = unescape(fileName[fileName.length-1].split(".")[0])
 
-	$.ajax({
-    url: urlAddress,
-    success: function (data) {
-        //List all .png file names in the page
-        var totalNumberOfRecords = 0;
-        var index =1;
-        $(data).find("a:contains(" + fileextension + ")").each(function () {
-			var fileName = this.href.split("/");
-            var artistName = unescape(fileName[fileName.length-1].split(".")[0])
+	// 	            if(artistName!="beatIndex") {
+	// 	      			totalNumberOfRecords++;
+	// 	            	theData[totalNumberOfRecords]= [[],[] ];  
+	// 		            fileList.push(artistName);
+	// 		            getAudio(urlAddress,index, artistName);
+	// 		            index++;
+	// 	            }
 
-            if(artistName!="beatIndex") {
-      			totalNumberOfRecords++;
-            	theData[totalNumberOfRecords]= [[],[] ];  
-	            fileList.push(artistName);
-	            getAudio(urlAddress,index, artistName) 	;
-	            index++;
-            }
-        });
-    },
-    error: function(data){
-    	console.log("error in loading mp3 files");
+	//         	}
+	//         })
+	//     },
+	//     error: function(data){
+	//     	console.log("error in loading mp3 files");
 
-    }
-	});
+	//     }
+	// });
+
 }
 
 
+function getAudioByList(selectedList, url){
 
+
+	for (var i =0, len = selectedList.length; i<len; i++){
+		theData[i+1] = [ [],[] ];
+		getAudio(url,i+1,selectedList[i])
+	}
+
+}
+
+
+/*
 function audioFileDecoded(audioBuffer){
 
 	var i = 1;
@@ -144,17 +181,10 @@ function audioFileDecoded(audioBuffer){
 	
 	if(i==1) {
 		//playSound(audioBuffer);
-		drawProgress(document.getElementById("progressCanvas"));
+		//drawProgress(document.getElementById("progressCanvas"));
 	}
 	
 }
-
-
-function audioFileDecodeFailed(e){
-	alert("The audio file cannot be decoded!");
-}
-
-
 
 function loadSound(url) {
 	var request = new XMLHttpRequest();
@@ -168,6 +198,13 @@ function loadSound(url) {
 		context.decodeAudioData(request.response, audioFileDecoded, audioFileDecodeFailed);
 	}
 	request.send();
+}
+*/
+
+
+
+function audioFileDecodeFailed(e){
+	alert("The audio file cannot be decoded!");
 }
 
 
@@ -196,6 +233,8 @@ function setupAudioNodes() {
 
 
 function playSound(audioBuffer) {
+	if (loadCompleted == false) return;
+	if (startOffset < 0 ) startOffset =0;
 	setupAudioNodes(); //이거 사실 한번만 호출해 두면 될 것 같은데...
 	startTime = audioContext.currentTime;
   sourceNode.buffer = audioBuffer;
@@ -209,6 +248,7 @@ function playSound(audioBuffer) {
 }
 
 function pause() {
+	if (playingOn == false) return;
 	sourceNode.stop();
   	sourceNode2.stop();
 	// Measure how much time passed since the last pause.
@@ -217,13 +257,19 @@ function pause() {
 }
 
 function stop() {
+	if (playingOn == false) {
+		startOffset = 0;
+		return;}
 	sourceNode.stop();
   	sourceNode2.stop();
 	startOffset = 0;
 	playingOn = false;
+	drawProgress(document.getElementById("progressCanvas"));
 }
 
 function switchAudio(targetIndex){
+	if (targetIndex == currentFileIndex) return;
+
 	if(playingOn) {
     sourceNode2.stop();
     sourceNode2 = audioContext.createBufferSource();
@@ -296,13 +342,14 @@ function drawProgress(canvas){
     	startOffset += audioContext.currentTime - startTime;
     	startTime = audioContext.currentTime;
 
-    	var measureNumber = time2Measure(startOffset, theData[currentFileIndex][1], theData[0][1]);
-    	var xmlid = parseMeasure(xmlDoc, measureNumber);
+    	var playedMeasureNumber = time2Measure(startOffset + 0.05, theData[currentFileIndex][1], theData[0][1]);
+    	var xmlid = parseMeasure(xmlDoc, playedMeasureNumber);
     	if (page != vrvToolkit.getPageWithElement(xmlid)){
 	        page = vrvToolkit.getPageWithElement(xmlid);
 	        load_page();    		
     	}
 
+    	$(measureNumber).val(playedMeasureNumber)
         highlightingMeausre(xmlid);
     }
     
@@ -327,7 +374,13 @@ function indexInterpolation(currentSecond, csvArray, csvArraySwitch){
 
 function time2Measure(currentSecond, csvAudio, csvBeat){
 	var i = csvAudio.binaryIndexOf(currentSecond);
-	var beat = csvBeat[i]
+	//var beat = csvBeat[i]
+
+	if(i+1 != csvAudio.length){
+		var interpolation = (currentSecond - csvAudio[i]) / (csvAudio[i+1] - csvAudio[i]);
+		if(interpolation<0) interpolation = 0;
+		var beat =  csvBeat[i] + interpolation * (csvBeat[i+1] - csvBeat[i]);
+	} else var beat =  csvBeat[i];
 
 	var targetMeasure = measureBeat.binaryIndexOf(beat);
 	targetMeasure = rptStructure[targetMeasure];
@@ -379,13 +432,14 @@ function measure2Time(currentMeasure, csvAudio, csvBeat){
 
 	// (csvBeat[i] - formerBeat) / ;
 
-
-
+	
+	
 	if (csvBeat[index+1] - csvBeat[index] != 0){
 		var interpolation = (targetBeat - csvBeat[index]) / (csvBeat[index+1] - csvBeat[index]);
+		if(isNaN(interpolation)) interpolation = 0;
 	} else var interpolation = 0;
 	var targetSecond = csvAudio[index] + interpolation * (csvAudio[index+1] - csvAudio[index])
-	console.log(currentMeasure);
+	//console.log(currentMeasure);
 
 
 	return targetSecond
@@ -415,20 +469,38 @@ function getAudio(url, index, artistName)
     xmlhttp.responseType = "arraybuffer";
     xmlhttp.onload = function()
     {
+	    var i = $.xhrPool.indexOf(xmlhttp);   //  get index for current connection completed
+        if (i > -1) $.xhrPool.splice(i, 1); //  removes from list by index
+
 		context.decodeAudioData(xmlhttp.response, function(audioBuffer){
 			theData[index][0] = audioBuffer;
-			theData[index][1] = getCsv(url+fileList[index-1]+".csv");
-			var surName = artistName.split(",")[0]
-			if (index==1 ){
-				var button='<button class="btn btn-primary" id="'+unescape(artistName)+'" >'+surName+'</button>' 
-			} else{
-				var button='<button class="btn btn-default" id="'+unescape(artistName)+'" >'+surName+'</button>'
-			}
-            $("#audioFile-buttons").append(button);
+			theData[index][1] = getCsv(url+artistName+".csv");
+			// var surName = artistName.split(",")[0]
+			// var performIndexOfSameArtist = /\([0-9]\)/.exec(artistName);
+
+			// if(performIndexOfSameArtist) surName = surName + " " + performIndexOfSameArtist;
+
+			// if (index==1 ){
+			// 	var button='<button class="btn btn-primary" id="'+unescape(artistName)+'" >'+surName+'</button>' 
+			// } else{
+			// 	var button='<button class="btn btn-default" id="'+unescape(artistName)+'" >'+surName+'</button>'
+			// }
+            //$("#audioFile-buttons").append(button);
+
+            loadedFileNumber++;
+
+            if (loadedFileNumber == selectedAudioList.length){
+            	loadCompleted = true;
+            	makeArtistButton(selectedAudioList, "#audioFile-buttons");
+            	$(loadAudio).removeClass("btn btn-primary").addClass("btn btn-success");
+
+            }
+
 		}, audioFileDecodeFailed)
     }
 
     xmlhttp.open("GET",url+artistName+".mp3",true);
+    $.xhrPool.push(xmlhttp);
     xmlhttp.send();
 }
 
@@ -458,7 +530,6 @@ function getMidi(url)
 		var absoluteTime = 0;
 		var timeSigMeasure = 0;
 		for (var i=0, len=midEvents.length; i<len; i++){
-			console.log
 			absoluteTime = absoluteTime + midEvents[i].delta;
 			if(midEvents[i].subtype == 88) {
 				if(j>0){
@@ -544,9 +615,11 @@ Array.prototype.binaryIndexOf = binaryIndexOf;
 
 function folder2Composer(dataArray){
 	for (var i = 0, len = dataArray.length, k=0; i< len; i++){
-	    if (composerArray.indexOf(dataArray[i].name) == -1){
-	      composerArray.push(dataArray[i].name.split(' ')[0])
+		var composerName = dataArray[i].name.split(' ')[0]
+	    if (composerArray.indexOf(composerName) == -1){
+	      composerArray.push(composerName);
 	      pieceList[k] = [];
+	      artistList[k] = [];
 	      // pieceAddress[k] = [];
 	      k++;
 	  	}
@@ -557,17 +630,44 @@ function folder2Composer(dataArray){
 		$('#composerUl').append('<li><a onclick=composerSelect("'+composerArray[l]+'")>'+composerArray[l]+'</a></li>')
 	}
 
+
 	for (var j = 0, len = dataArray.length; j< len; j++){
-    	var composerIndex = composerArray.indexOf(dataArray[j].name.split(' ')[0])
+    	var composerIndex = composerArray.indexOf(dataArray[j].name.split(' ')[0]);
     	var tempPieceName = getNameByDepth(dataArray[j]);
+    	var tempArtistName = getArtistByDepth(dataArray[j]);
+
     	// var tempAddress = getAddressByDepth(dataArray[j]);
-    	tempPieceName.forEach(function (d){
-    		pieceList[composerIndex].push(d);
-    	})
+
+    	for (var n = 0, nlen = tempPieceName.length; n< nlen; n++){
+    		pieceList[composerIndex].push(tempPieceName[n]);
+    		artistList[composerIndex].push(tempArtistName[n]);
+    	}
+    	// tempPieceName.forEach(function (d){
+    	// 	pieceList[composerIndex].push(d);
+    	// 	//artistList[composerIndex][pieceList[composerIndex].length-1] = tempArtistName 
+    	// });
+
+
     	// tempAddress.forEach(function (e){
     	// 	pieceAddress[composerIndex].push(e);
     	// })
   	}
+
+  	var dummyPieceList = deepCopy(pieceList);
+  	var dummyArtistList = deepCopy(artistList);
+
+  	for (var n =0, nlen=pieceList.length; n<nlen; n++){
+  		pieceList[n].sort(sortAlphaNum);
+  	}
+
+  	for (var n =0, nlen=pieceList.length; n<nlen; n++){
+  		for (var nn = 0, nnlen = pieceList[n].length; nn<nnlen; nn++){
+  			var index = dummyPieceList[n].indexOf(pieceList[n][nn]);
+  			dummyArtistList[n][nn] = artistList[n][index];
+  		}
+  	}
+
+  	artistList = dummyArtistList;
 }
 
 function composerSelect(name){
@@ -577,8 +677,8 @@ function composerSelect(name){
 	$('#pieceUl').empty()
 
 	for (var i=0, len = pieceList[composerIndex].length; i<len; i++){
-		var tempPieceName = pieceList[composerIndex][i].replace(name, '');
-		$('#pieceUl').append('<li><a onclick=pieceSelect(['+composerIndex+','+i+'])>	'+tempPieceName+'</a></li>');
+		var tempPieceName = pieceList[composerIndex][i].replace(name+' ', '').replaceAll(" - ", ' ');
+		$('#pieceUl').append('<li><a onclick=pieceSelect(['+composerIndex+','+i+'])>'+tempPieceName+'</a></li>');
 	}
 
 }
@@ -586,10 +686,17 @@ function composerSelect(name){
 function pieceSelect(address){
 
 	var url = "sourceFiles/".concat(pieceList[address[0]][address[1]].replaceAll(" - ", "/")).concat("/");
+	sourceDir = url;
 
 	if (confirm("Load this piece?") == true) {
+		var pieceName = pieceList[address[0]][address[1]];
+		pieceName = pieceName.replace(pieceName.split(' ')[0]+' ', '').replaceAll(" - ", ' ')
 
+		$("#dropButtonPiece").text(pieceName);
+
+		artistListOfPiece = artistList[address[0]][address[1]];
 		$("#audioFile-buttons").empty();
+		selectedAudioList = [];
 		loadFiles(url);
 	} else return
 
@@ -616,16 +723,43 @@ function getNameByDepth (obj){
   //var address = obj.name;
 
   if (obj.children){
-    obj.children.forEach(function(d) {
-      var tempPieceName = getNameByDepth(d);
-      tempPieceName.forEach(function(e){
-        nameList.push(pieceName.concat(" - ").concat(e));
-      })
-      //address = address.concat("/").concat(d.name);
-    })
+  	if(obj.children[0].type == "folder"){
+	    obj.children.forEach(function(d) {
+	      var tempPieceName = getNameByDepth(d);
+	      tempPieceName.forEach(function(e){
+	        nameList.push(pieceName.concat(" - ").concat(e));
+	      })
+	      //address = address.concat("/").concat(d.name);
+	    })
+	}
   }
 
   if(nameList == 0) nameList.push(pieceName);
+
+  return nameList
+}
+
+function getArtistByDepth (obj){
+  var nameList = [ ];
+
+
+  if (obj.children){
+  	if(obj.children[0].type == "folder"){
+	    obj.children.forEach(function(d) {
+	      var tempArtistName = getArtistByDepth(d);
+	      tempArtistName.forEach(function(e){
+	      	nameList.push(e);
+	      });
+	      //address = address.concat("/").concat(d.name);
+	    });
+	}else{
+		nameList=[ [] ];
+		obj.children.forEach(function(d) {
+	      var tempArtistName = d.name.split('.')[0];
+	      if (tempArtistName != 'beatIndex') nameList[0].push(tempArtistName);
+	  	})
+	}
+  }
 
   return nameList
 }
@@ -840,4 +974,131 @@ function searchRepeatInformation(){
 	return repeatInfo;
 }
   
+
+
+
+function sortAlphaNum(a,b) {
+	var reA = /[^a-zA-Z]/g;
+	var reN = /[^0-9]/g;
+    var aA = a.replace(reA, "");
+    var bA = b.replace(reA, "");
+    if(aA === bA) {
+        var aN = parseInt(a.replace(reN, ""), 10);
+        var bN = parseInt(b.replace(reN, ""), 10);
+        return aN === bN ? 0 : aN > bN ? 1 : -1;
+    } else {
+        return aA > bA ? 1 : -1;
+    }
+}
+
+function makeArtistButton(inputArray, buttonClass) {
+	$(buttonClass).empty();
+
+	inputArray.sort();
+
+	for(var i =0, len=inputArray.length; i<len;i++){
+		var artistName = inputArray[i];
+		var surName = artistName.split(",")[0]
+		var performIndexOfSameArtist = /\([0-9]\)/.exec(artistName);
+
+		if(performIndexOfSameArtist) surName = surName + " " + performIndexOfSameArtist;
+
+
+		if (i==0){
+			var button='<button class="btn btn-primary" id="'+unescape(artistName)+'" >'+surName+'</button>' 
+			} else{
+			var button='<button class="btn btn-default" id="'+unescape(artistName)+'" >'+surName+'</button>'
+		}
+	    
+	    $(buttonClass).append(button);
+
+
+	    // if ( $("#audioFile-buttons").find('button').length == theData.length -1 ){
+	    // 	loadCompleted = true;
+	    // }
+
+	}
+}
+
+function makeArtistSelectOption(inputArray, selectClass) {
+	$(selectClass).empty();
+
+	inputArray.sort();
+
+	for(var i =0, len=inputArray.length; i<len;i++){
+		var artistName = inputArray[i];
+		// var surName = artistName.split(",")[0]
+		// var performIndexOfSameArtist = /\([0-9]\)/.exec(artistName);
+
+		// if(performIndexOfSameArtist) surName = surName + " " + performIndexOfSameArtist;
+
+
+		var option='<option value="'+unescape(artistName)+'" >'+artistName+'</button>' 
+			
+	    
+	    $(selectClass).append(option);
+
+
+	    // if ( $("#audioFile-buttons").find('button').length == theData.length -1 ){
+	    // 	loadCompleted = true;
+	    // }
+
+	}
+   	$(selectClass).multiselect("refresh");
+   	$(selectClass).multiselect({
+		minWidth: 200
+	});
+}
+
+
+
+
+function deepCopy(obj) {
+    if (Object.prototype.toString.call(obj) === '[object Array]') {
+        var out = [], i = 0, len = obj.length;
+        for ( ; i < len; i++ ) {
+            out[i] = arguments.callee(obj[i]);
+        }
+        return out;
+    }
+    if (typeof obj === 'object') {
+        var out = {}, i;
+        for ( i in obj ) {
+            out[i] = arguments.callee(obj[i]);
+        }
+        return out;
+    }
+    return obj;
+}
+
+
+$(function() {
+    $.xhrPool = [];
+    $.xhrPool.abortAll = function() {
+        $(this).each(function(i, jqXHR) {   //  cycle through list of recorded connection
+            jqXHR.abort();  //  aborts connection
+            $.xhrPool.splice(i, 1); //  removes from list by index
+        });
+    }
+
+    $.ajaxSetup({
+        beforeSend: function(jqXHR) { $.xhrPool.push(jqXHR); }, //  annd connection to list
+        complete: function(jqXHR) {
+            var i = $.xhrPool.indexOf(jqXHR);   //  get index for current connection completed
+            if (i > -1) $.xhrPool.splice(i, 1); //  removes from list by index
+        }
+    });
+})
+
+
+function arraysEqual(arr1, arr2) {
+    if(arr1.length !== arr2.length)
+        return false;
+    for(var i = arr1.length; i--;) {
+        if(arr1[i] !== arr2[i])
+            return false;
+    }
+
+    return true;
+}
 
