@@ -23,11 +23,11 @@ var loadedFileNumber = 0;
 var composerArray = [];
 var pieceList = []; 
 var artistList = [];
+//var artistListOfPiece = ['Barenboim, Daniel', 'Bernstein, Leonard', 'Cantelli, Guido', 'Dausgaard, Thomas', 'Furtwaengler, Wilhelm', 'Gardiner, John Eliot', 'Herreweghe, Philippe', 'Karajan, Herbert von', 'Klemperer, Otto', 'Kubelik, Rafael', 'Monteux, Pierre']
 var artistListOfPiece = ["Biret, Idil", "Cortot, Alfred", "Cortot, Alfred (2)", "Haas, Monique", "Harasiewicz, Adam", "Horowitz, Vladimir", "Lisiecki, Jan", "Lugansky, Nikolai", "Perahia, Murray", "Pollini, Maurizio", "Richter, Sviatoslav", "Richter, Sviatoslav (2)", "Shebanova, Tatiana", "Vasary, Tamas"];
 var selectedAudioList = [];
 var selectedAudioPrev = [];
 // var pieceAddress =[];
-
 
 var contextClass = (window.AudioContext || 
   window.webkitAudioContext || 
@@ -252,7 +252,7 @@ function pause() {
 	sourceNode.stop();
   	sourceNode2.stop();
 	// Measure how much time passed since the last pause.
-	if (playingOn) startOffset += audioContext.currentTime - startTime;
+	startOffset += audioContext.currentTime - startTime;
 	playingOn = false;
 }
 
@@ -312,11 +312,29 @@ function doMouseDown(e){
 	var x= e.clientX-rect.left - e.target.clientLeft + e.target.scrollLeft;
 
 	canvas_x = x/canvasWidth * theData[currentFileIndex][0].length / theData[currentFileIndex][0].sampleRate;
-	stop();
+	
 	startOffset = canvas_x;
-	playSound(theData[currentFileIndex][0]);
+
+    //move2Measure(playedMeasureNumber, theData[currentFileIndex][1], theData[0][1]);
+
+	if (playingOn){
+		pause();
+		playSound(theData[currentFileIndex][0]);
+
+	} else {
+		var playedMeasureNumber = time2Measure(startOffset, theData[currentFileIndex][1], theData[0][1]);
+	    var xmlid = parseMeasure(xmlDoc, playedMeasureNumber);
+		if (page != vrvToolkit.getPageWithElement(xmlid)){
+	        page = vrvToolkit.getPageWithElement(xmlid);
+	        load_page();    		
+		}
+
+		$(measureNumber).val(playedMeasureNumber)
+	    highlightingMeausre(xmlid);
+	}
 
 }
+
 
 
 //calculate volume using simple linear array
@@ -447,9 +465,13 @@ function measure2Time(currentMeasure, csvAudio, csvBeat){
 
 
 function move2Measure(targetMeasure, csvAudio, csvBeat){
-	if(playingOn)pause();
-	startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
-	playSound(theData[currentFileIndex][0]);
+	if(playingOn){
+		pause();
+		startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
+		playSound(theData[currentFileIndex][0]);
+	} else{
+		startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
+	}
 
 }
 
