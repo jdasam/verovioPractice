@@ -1,12 +1,19 @@
 <html>
+
+<META http-equiv="Expires" content="-1"> 
+<META http-equiv="Pragma" content="no-cache"> 
+<META http-equiv="Cache-Control" content="No-Cache"> 
+
+
 <head>
   <title>WebScore Ver.1.0</title>
-  <script src="verovio-toolkit_0712.js" type="text/javascript" ></script>
+  <script src="verovio-toolkit20170925.js" type="text/javascript" ></script>
   <!-- We also use jQuery for this example -->
   <script src="jquery-2.2.4.min.js" type="text/javascript" ></script>
   <script src="jquery-ui.min.js" type="text/javascript"> </script>
   <script src="MIDIFile.js" type="text/javascript" ></script>    
   <script src="papaparse.js" type="text/javascript"></script>
+  <script src="midi2mei.js" type="text/javascript"></script>
   <script src="audioFileReader.js" type="text/javascript"></script>
   <script src="jquery.multiselect.min.js" type="text/javascript"></script>
   <link rel="stylesheet" href="jquery.multiselect.css"></link>
@@ -225,23 +232,39 @@
   
 
   <script type="text/javascript">
-    var options = JSON.stringify({
-        pageHeight: 2500,
-        pageWidth: 3900,
-        ignoreLayout: 3,
-        border: 50,
-        scale: 35,
-    });
     var vrvToolkit = new verovio.toolkit();
+    var page = 1;
+    var zoom = 60;
+    var pageHeight = 1500;
+    var pageWidth = 2100;
+    var spacingSystem = 3;
+    var font = 'Leipzig';
+    var swipe_pages = false;
+    var format = 'mei';
+    var outputFilename = 'output.mei'
+    var ids = [];
+    var pdfFormat = "A4";
+    var pdfOrientation = "portrait";
+
+
+    // var options = JSON.stringify({
+    //     pageHeight: 2500,
+    //     pageWidth: 3900,
+    //     ignoreLayout: 3,
+    //     border: 50,
+    //     scale: 10,
+    // });
+    // var vrvToolkit = new verovio.toolkit();
     var svg
     var parser = new DOMParser();
     var xmlDoc;
     var xmlSvg;
     var parseOutput;
     var xmlid;
-    vrvToolkit.setOptions(options);
+    set_options()
     var highlightSvg = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
-    var page = 1;
+    var playbar = document.createElementNS("http://www.w3.org/2000/svg", 'line');
+    // var highlightNoteSvg = document.createElementNS("http://www.w3.org/2000/svg", 'circle')
 
     //http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei
     /* Load the file using a HTTP GET */
@@ -328,7 +351,7 @@
         measureAreaSvg.addEventListener("click", measureClick);
 
 
-        $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(measureAreaSvg)
+        $(output)[0].childNodes[0].childNodes[7].childNodes[1].appendChild(measureAreaSvg)
       }
     }
 
@@ -398,11 +421,72 @@
 
 
       //$(output)[0].appendChild(highlightSvg)
-      $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(highlightSvg)
+      $(output)[0].childNodes[0].childNodes[7].childNodes[1].appendChild(highlightSvg)
 
       //$(output)[0].insertBefore(highlightSvg, $(output)[0].childNodes[0].childNodes[3].childNodes[1].childNodes[1])
+    }    
+
+    function highlightingNote(xmlid){
+      // var svgData = $(xmlSvg).find('g[id= "'+ xmlid + '"]')[0];
+      var svgData = document.getElementById(xmlid);
+
+      if (svgData) {
+        svgData.style.fill = 'red';
+        // console.log(xmlid)
+      }
+    }
+
+    function showPlaybar(currentSecond, csvAudio, csvBeat, midiNotes, meiNotes, svg){
+      var beat = time2beat(currentSecond, csvAudio, csvBeat);
+      var midiMeasure = measureBeat.binaryIndexOf(beat);
+      beat = beat - (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
+
+      var posList = beat2position(beat, meiNotes, svg);
+
+      var x1 = posList[0];
+      var x2 = x1
+      var y1 = String(Number(posList[1]) - 200);
+      var y2 = String(Number(posList[2]) + 200);
 
 
+      playbar.setAttribute("x1", x1 )
+      playbar.setAttribute("y1", y1 ) 
+      playbar.setAttribute("x2", x2 )
+      playbar.setAttribute("y2", y2 ) 
+      playbar.style.stroke = 'red';
+      playbar.style.strokeWidth = 50;
+      playbar.style.fillOpacity = 1;
+
+      $(output)[0].childNodes[0].childNodes[7].childNodes[1].appendChild(playbar)
+    }
+
+
+
+
+    function applyVelocity2svg(svg, midiArray, meiArray){
+      var s = new XMLSerializer();
+      var notesInSvg = $(svg).find("g[class=note]")
+      for (var i=0; i<notesInSvg.length; i++){
+        var xmlid = notesInSvg[i].getAttribute('id');
+        if (mei2midiMapArray.length > 1) {
+        // var meiNote = meiArray.filter(function (note) { return note.xmlid == xmlid })[0];
+        // var velocity = findMeiIDorVelocity(midiArray, meiNote);
+          var meiNoteIndex = meiArray.findIndex(function(e){return e.xmlid==xmlid});
+          if (typeof(mei2midiMapArray[meiNoteIndex]) != "undefined"){
+            var velocity = midiArray[mei2midiMapArray[meiNoteIndex]].velocity;
+          }
+        }
+
+
+
+        $(svg).find('g[id= "'+ xmlid + '"]').css({'opacity': Number(velocity/128)})
+      }
+      var stringSvg = s.serializeToString(svg);
+      $("#output").html(stringSvg);
+
+      var measures = $(svg).find("g[class=measure]")
+
+      detectMeasureInSvg(measures)
 
     }
 
@@ -430,10 +514,61 @@
         $("#output").html(svg);
 
         xmlSvg = $.parseXML(svg);
-        var measures = $(xmlSvg).find("g[class=measure]")
-        detectMeasureInSvg(measures)     
+
+        applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray)
+        // var measures = $(xmlSvg).find("g[class=measure]")
+
+        // detectMeasureInSvg(measures)
+
+        // xmlSvg = svg;
 
     };
+
+
+
+
+   // function enable_swipe( pages ) {
+   //      if ( pages && !swipe_pages ) {
+   //          $("#svg_output").swipe( "destroy" );
+   //          $("#svg_output").swipe( { swipeLeft: swipe_next, swipeRight: swipe_prev, tap: swipe_zoom_in, doubleTap: swipe_zoom_out, allowPageScroll:"auto"} );
+   //          swipe_pages = true;
+   //      }
+   //      // zoom only
+   //      else if ( !pages && swipe_pages ) {
+   //          $("#svg_output").swipe( "destroy" );
+   //          $("#svg_output").swipe( { tap: swipe_zoom_in, doubleTap: swipe_zoom_out, allowPageScroll:"auto"} );
+   //          swipe_pages = false;
+   //      }
+   //  }
+
+    function set_options( ) {
+      pageHeight = calc_page_height();
+      pageWidth = calc_page_width();
+      border = 30;
+      options = {
+                  inputFormat: format,
+                  pageHeight: pageHeight,
+                  pageWidth: pageWidth,
+                  border: border,
+                  scale: zoom,
+                  spacingSystem: spacingSystem,
+                  adjustPageHeight: 1,
+                  ignoreLayout: 1,
+                  mmOutput: 0,
+                  font: font
+              };
+      //console.log( options );
+      vrvToolkit.setOptions( options );
+    }
+
+    function calc_page_height() {
+        return ($(document).height() - $( "#navbar" ).height() - 4) * 100 / zoom;
+    }
+
+    function calc_page_width() {
+        return ($(sub_wrapper).width() )  * 100 / zoom ; // - $( "#sidbar" ).width();
+    }
+
 
 
 

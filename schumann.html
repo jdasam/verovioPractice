@@ -1,0 +1,552 @@
+<html>
+<head>
+  <title>WebScore Ver.1.0</title>
+  <script src="verovio-toolkit_0712.js" type="text/javascript" ></script>
+  <!-- We also use jQuery for this example -->
+  <script src="jquery-2.2.4.min.js" type="text/javascript" ></script>
+  <script src="jquery-ui.min.js" type="text/javascript"> </script>
+  <script src="MIDIFile.js" type="text/javascript" ></script>    
+  <script src="papaparse.js" type="text/javascript"></script>
+  <script src="audioFileReaderSchumann.js" type="text/javascript"></script>
+  <script src="jquery.multiselect.min.js" type="text/javascript"></script>
+  <link rel="stylesheet" href="jquery.multiselect.css"></link>
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"></link>
+  <link rel="stylesheet" href="jquery-ui.css"></link>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+  <header>
+    <h1>WebScore</h1>
+  </header>
+
+<div id="wrapper">
+
+  <div id="sidebar">
+    <h3> Composer</h3>
+
+    <div class="dropdown">
+      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonComposer" >Select Composer
+      <span class="caret"></span></button>
+      <ul style="overflow-y:auto; width:200px; height=150px;" class="dropdown-menu" id="composerUl">
+      </ul>
+    </div>
+    <h3> Piece </h3>
+
+    <div class="dropdown" >
+      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonPiece">Select Piece
+      <span class="caret"  >
+	   </span>
+	  </button>
+      <ul style="overflow-x:auto; overflow-y:scroll; width:200px; height:400px;" class="dropdown-menu " id="pieceUl">
+        <li> Please select a composer </li>
+      </ul>
+    </div>
+
+	<div id="barNumber">
+	Measure number
+	  <input type="number" id="measureNumber"></input>
+	</div>
+
+	<div id="menu">
+	  <button class="btn btn-circle btn-info btn-lg" data-action="play">
+        <i class="glyphicon glyphicon-play"></i>
+      </button>
+      <button class="btn btn-circle btn-info btn-lg" data-action="pause">
+        <i class="glyphicon glyphicon-pause" pointer-events:none></i>
+      </button>
+      <button class="btn btn-circle btn-info btn-lg" data-action="stop">
+        <i class="glyphicon glyphicon-stop"></i>
+      </button>
+    </div>
+
+	
+	<div id="artist">
+	  Artist
+    <button class="btn btn-success" id="loadAudio">Load Audio</button>
+	</div>
+
+  <div >
+  <select id="artistSelect" multiple>
+    </select>
+  </div>
+
+
+	<div class="btn-group" id="audioFile-buttons">
+	</div>
+
+
+  </div>
+
+  <div id="sub_wrapper">
+
+    <div id="progressBar" style="height:50" >
+      <canvas id="progressCanvas" width="780" height="30" align="center" </canvas>
+	</div>
+
+    <div id="output"/>  
+    </div>
+
+  </div>
+
+</div>
+
+
+
+
+
+
+
+
+<style>
+
+  header {
+    background-color:#1594E5;
+    color:white;
+    text-align:center;
+    padding:5px;
+
+  }
+
+  #wrapper{
+	border: 1px; /* solid #FFBB00;*/
+	width: 1250px;
+	padding: 10px;
+	position: absolute;
+    left: 50%;
+	margin-left:-586px;
+	top: 80px;
+	overflow: hidden; ;
+	}
+
+  #sub_wrapper{
+    float:right;
+    padding:10px;
+	border-radius: 20px;  
+	width: 922px; 
+	margin-top: 20px; 
+	margin-bottom: 20px;
+	margin-right: 50px;
+	margin-left: 0px;
+    background-color: white;
+	} /* width : 972*/
+
+
+
+  #sidebar {
+    float:right;
+	border-radius: 20px;  
+    width:250px;
+    padding:20px;
+	margin-top: 20px; 
+	font-size: 20px;
+    background-color: white;
+  } /* width : 150 */
+
+  #output{
+    float:left;
+	   width: 870px; 
+  } 
+
+  body{
+    background-color: #F0F0F0 ;
+  }
+
+  #menu{
+    width: 160px;
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+
+  }
+
+  #artist{
+    font-size: 20px;
+	margin-top: 20px;
+	}
+  #progressBar{
+    margin-top: 10px;
+    border-style: double;
+    border-width: 10px;
+    padding-left: 0px;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 800px;
+  }
+
+  #audioFile-buttons{
+    float:left;
+    margin-top: 10px;
+    max-width: 1000px;
+  }
+
+  #measureNumber{
+	width: 100;
+  }
+
+  #barNumber{
+    font-size: 20px;
+    float: center;
+	margin-top: 20px;
+	margin-bottom: 10px;
+  }
+
+  #artist{
+    margin-bottom: 10px;
+  }
+
+  .btn-circle.btn-lg {
+    width: 40px;
+    height: 40px;
+    padding: 6px 10px;
+    font-size: 18px;
+    line-height: 1.33;
+    border-radius: 25px;
+  }
+
+/*  #progressCanvas {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    width: 600px;
+  }*/
+
+
+</style>  
+
+
+</head>
+<body>
+
+
+
+  <!-- The div where we are going to insert the SVG -->
+  
+
+  <script type="text/javascript">
+    var options = JSON.stringify({
+        pageHeight: 3500,
+        pageWidth: 3200,
+        ignoreLayout: 3,
+        border: 50,
+        scale: 26,
+    });
+    var vrvToolkit = new verovio.toolkit();
+    var svg
+    var parser = new DOMParser();
+    var xmlDoc;
+    var xmlSvg;
+    var parseOutput;
+    var xmlid;
+    vrvToolkit.setOptions(options);
+    var highlightSvg = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+    var page = 1;
+
+    //http://www.verovio.org/examples/hello-world/Haydn_StringQuartet_Op1_No1-p1.mei
+    /* Load the file using a HTTP GET */
+
+
+
+    $(window).keyup(function(event){
+      // We need to make sure not to capture event on text fields
+      if ( $(event.target).hasClass('form-control') ) {
+          return;
+      }
+      if ( event.ctrlKey && (event.keyCode == 37) ) {
+          first_page();
+      }
+      else if ( event.keyCode == 37 ) {
+          prev_page();
+      }
+      else if ( event.ctrlKey && (event.keyCode == 39) ) {
+          last_page();
+      }
+      else if ( event.keyCode == 39 ) {
+          next_page();
+      }
+    });
+
+
+
+
+    function parseMeasure(xml, measureNumber)
+    {
+      var $xml = $(xml);
+      xmlid = $xml.find('measure[n="' + measureNumber + '"]')[0].getAttribute("xml:id");
+      return xmlid
+    }
+
+    function detectMeasureInSvg(measures){
+      for(var i = 0; i<measures.length; i++){
+        var positionList = [];
+        var pathArray = measures[i].getElementsByTagName("path");
+        var measureId = measures[i].getAttribute("id");
+
+        for(var j =0; j<pathArray.length; j++){
+          var position = pathArray[j].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+          for (var k = 0; k<position.length; k++){
+            position[k] = position[k] * 1;
+          }
+          positionList.push(position)                        
+        }
+
+        /*
+        for(var j=1; j<measures[i].childNodes.length; j=j+2){
+          if(measures[i].childNodes[j].getAttribute("class")=="staff"){
+            for(var k=1; k<measures[i].childNodes[j].childNodes.length; k=k+2){
+              console.log(i,j,k)
+              var position = measures[i].childNodes[j].childNodes[k].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+              for (var l = 0; l<position.length; l++){
+                position[l] = position[l] * 1;
+              }
+              positionList.push(position)                
+            }
+          }
+        }
+        */
+        
+        var minmaxPos = [positionList[0][0],positionList[0][1],0,0]
+
+        for (var l = 0; l<positionList.length; l++){
+          if (positionList[l][0] < minmaxPos[0]) minmaxPos[0] = positionList[l][0];
+          if (positionList[l][1] < minmaxPos[1]) minmaxPos[1] = positionList[l][1];
+          if (positionList[l][2] > minmaxPos[2]) minmaxPos[2] = positionList[l][2];
+          if (positionList[l][3] > minmaxPos[3]) minmaxPos[3] = positionList[l][3];
+        }
+
+        var measureAreaSvg = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+        measureAreaSvg.setAttribute("x", minmaxPos[0].toString());
+        measureAreaSvg.setAttribute('y', minmaxPos[1].toString());
+        measureAreaSvg.setAttribute('width', (minmaxPos[2] - minmaxPos[0]).toString());
+        measureAreaSvg.setAttribute('height', (minmaxPos[3] - minmaxPos[1]).toString());
+        //measureAreaSvg.style.stroke = 'red';
+        measureAreaSvg.style.strokeWidth = 0;
+        measureAreaSvg.style.fillOpacity = 0;
+        measureAreaSvg.id = measureId;
+
+        measureAreaSvg.addEventListener("click", measureClick);
+
+
+        $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(measureAreaSvg)
+      }
+    }
+
+
+    $(measureNumber).change(function() {
+      xmlid = parseMeasure(xmlDoc, $(measureNumber).val());
+      page = vrvToolkit.getPageWithElement(xmlid);
+
+      load_page();
+      move2Measure($(measureNumber).val(), theData[currentFileIndex][1], theData[0][1]);
+      highlightingMeausre(xmlid);
+
+    });
+
+    $(artistSelect).change(function() {
+
+       $(loadAudio).removeClass("btn btn-success").addClass("btn btn-primary");
+
+    });
+
+
+    
+  
+
+    //$(output)[0].addEventListener("mouseover", mouseOver);
+
+
+    function mouseOver() {
+        console.log("mouse over");
+    }
+
+    function measureClick(){
+      var selectedMeasure = $(xmlDoc).find('measure[xml\\:id="'+this.id+'"]')[0].getAttribute('n');
+      $(measureNumber).val(selectedMeasure);
+      move2Measure(selectedMeasure, theData[currentFileIndex][1], theData[0][1]);
+      highlightingMeausre(this.id);
+    }
+
+    function highlightingMeausre(xmlid){
+      var svgData = $(xmlSvg).find('g[id= "'+ xmlid + '"]').find("path");
+      var positionList = [];
+      for (var i = 0; i<svgData.length; i++){
+        var position = svgData[i].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+        for (var j = 0; j<position.length; j++){
+          position[j] = position[j] * 1;
+        }
+        positionList.push(position)
+
+      }
+
+      var minmaxPos = [positionList[0][0],positionList[0][1],0,0]
+
+      for (var i = 0; i<positionList.length; i++){
+        if (positionList[i][0] < minmaxPos[0]) minmaxPos[0] = positionList[i][0];
+        if (positionList[i][1] < minmaxPos[1]) minmaxPos[1] = positionList[i][1];
+        if (positionList[i][2] > minmaxPos[2]) minmaxPos[2] = positionList[i][2];
+        if (positionList[i][3] > minmaxPos[3]) minmaxPos[3] = positionList[i][3];
+      }
+
+      highlightSvg.setAttribute("x", minmaxPos[0].toString());
+      highlightSvg.setAttribute('y', minmaxPos[1].toString());
+      highlightSvg.setAttribute('width', (minmaxPos[2] - minmaxPos[0]).toString());
+      highlightSvg.setAttribute('height', (minmaxPos[3] - minmaxPos[1]).toString());
+      highlightSvg.style.stroke = 'red';
+      highlightSvg.style.strokeWidth = 5;
+      highlightSvg.style.fillOpacity = 0.1;
+
+
+      //$(output)[0].appendChild(highlightSvg)
+      $(output)[0].childNodes[0].childNodes[3].childNodes[1].appendChild(highlightSvg)
+
+      //$(output)[0].insertBefore(highlightSvg, $(output)[0].childNodes[0].childNodes[3].childNodes[1].childNodes[1])
+
+
+
+    }
+
+
+    function next_page() {
+      if (page >= vrvToolkit.getPageCount()) {
+          return;
+      }
+
+      page = page + 1;
+      load_page();
+    };
+
+    function prev_page() {
+      if (page <= 1) {
+          return;
+      }
+
+      page = page - 1;
+      load_page();
+    };
+
+    function load_page() {
+        svg = vrvToolkit.renderPage(page, "");
+        $("#output").html(svg);
+
+        xmlSvg = $.parseXML(svg);
+        var measures = $(xmlSvg).find("g[class=measure]")
+        detectMeasureInSvg(measures)     
+
+    };
+
+
+
+    function Menu(elem) {
+      elem.onclick = function(e) {
+        var target = e && e.target || event.srcElement;
+        if(target.getAttribute('data-action')==null){
+          var action = target.getAttribute('class').split('-')[1];
+        } else var action = target.getAttribute('data-action');
+
+        if (action=="play" && playingOn == false) {
+          playSound(theData[currentFileIndex][0]);
+        }
+        else if(action=="pause") {
+          pause();
+        }
+        else if(action=="stop") {
+          stop();
+        }
+      }
+    }
+    new Menu(document.getElementById('menu'))
+
+
+    function selectAudio(elem) {
+      elem.onclick = function(e) {
+        var target = e && e.target || event.srcElement
+        var id = target.getAttribute('id');
+
+        if (id == 'loading') return
+        if (id == "audioFile-buttons") return
+        var index = selectedAudioList.indexOf(id);
+
+        $("[id='"+id+"']").removeClass("btn btn-default").addClass("btn btn-primary");
+        //$('#'+unescape(id)).removeClass("btn btn-default").addClass("btn btn-primary");
+
+        for(var i=0, len=selectedAudioList.length; i<len; i++){
+          if (i!=index) $("[id='"+selectedAudioList[i]+"']").removeClass("btn btn-primary").addClass("btn btn-default");
+        }
+
+        if(playingOn) switchAudio(index+1);
+        else playSound(theData[index+1][0]);
+        currentFileindex = index + 1;
+      }
+    }
+    new selectAudio(document.getElementById('audioFile-buttons'));
+
+
+
+    function loadSelectedAudio(elem) {
+      elem.onclick = function(e){
+        if(!selectedAudioList) selectedAudioList =[];
+
+        selectedAudioPrev = selectedAudioList.slice(0);
+        selectedAudioList = $("#artistSelect").val();
+        var tempData = [];
+        if (arraysEqual(selectedAudioPrev, selectedAudioList)) return;
+
+        if(playingOn) stop();
+        loadCompleted = false;
+        loadedFileNumber = 0;
+
+        var button= '<button class="btn btn-default" id="loading" > Loading Audio Files.. </button>'
+        $("#audioFile-buttons").append(button);
+
+        for(var i =0, len=selectedAudioPrev.length; i<len; i++){
+          var newIndex = selectedAudioList.indexOf(selectedAudioPrev[i]);
+          if (newIndex != -1){
+            tempData[newIndex+1] = theData[i+1];
+            loadedFileNumber++;
+          } else theData[i+1] =[];
+        }
+
+        for(var i =1, len=tempData.length; i<len; i++){
+          theData[i] = tempData[i];
+        }
+
+        for(var i =0, len=selectedAudioList.length; i<len; i++){
+          var oldIndex = selectedAudioPrev.indexOf(selectedAudioList[i]);
+          if (oldIndex == -1){
+            theData[i+1] = [ [],[] ];
+            getAudio(sourceDir, i+1, selectedAudioList[i])
+          }
+        }
+
+        if(theData.length > selectedAudioList.length +1 ){
+          var dif = theData.length - 1 - selectedAudioList.length;
+          theData.splice(selectedAudioList.length+1, dif);
+        }
+
+        if(loadedFileNumber == selectedAudioList.length){
+          loadCompleted = true;
+          makeArtistButton(selectedAudioList, "#audioFile-buttons");
+          $(loadAudio).removeClass("btn btn-primary").addClass("btn btn-success");
+        }
+
+        //getAudioByList(selectedAudioList, sourceDir);
+      }
+    }
+
+    new loadSelectedAudio(document.getElementById('loadAudio'));
+
+
+
+    var canvasWidth = document.getElementById("progressCanvas").width;
+    var canvasHeight = document.getElementById("progressCanvas").height;
+
+
+
+
+
+
+
+  </script>
+</body>
+</html>

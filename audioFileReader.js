@@ -14,7 +14,10 @@ var midiFile;
 var timeSignature =[];
 var rptStructure =[];
 var measureBeat = [];
-
+var midiNoteList = [];
+var noteLabel_BeatArray = [];
+var midiBeat2xmlBeat = [];
+var mei2midiMapArray =[];
 
 var sourceDir = "sourceFilesExample/";
 var fileextension = ".csv";
@@ -89,9 +92,11 @@ function loadFiles(urlAddress){
 
 
     $.get( urlAddress+"score.mei", function( data ) {
+      set_options()
       vrvToolkit.loadData(data);
 
       //var svg = vrvToolkit.renderData( data + "\n", "" );
+
       load_page();
 
       xmlDoc = $.parseXML(data);
@@ -99,7 +104,6 @@ function loadFiles(urlAddress){
       //for (var rptMeasure, len = repeatInfo.length;)
 
 	  getMidi(urlAddress+"(midi).mid");
-
 
 
       console.log("mei loaded");
@@ -369,6 +373,15 @@ function drawProgress(canvas){
 
     	$(measureNumber).val(playedMeasureNumber)
         highlightingMeausre(xmlid);
+
+        // var playedNotesID = time2notes(startOffset +0.05, theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray);
+        // console.log(playedNotesID);
+        // for(var i = 0, len = playedNotesID.length; i<len; i++){
+        // 	highlightingNote(playedNotesID[i])
+        // }
+
+        showPlaybar(startOffset + 0.05,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
+
     }
     
     
@@ -391,22 +404,20 @@ function indexInterpolation(currentSecond, csvArray, csvArraySwitch){
 
 
 function time2Measure(currentSecond, csvAudio, csvBeat){
-	var i = csvAudio.binaryIndexOf(currentSecond);
-	//var beat = csvBeat[i]
-
-	if(i+1 != csvAudio.length){
-		var interpolation = (currentSecond - csvAudio[i]) / (csvAudio[i+1] - csvAudio[i]);
-		if(interpolation<0) interpolation = 0;
-		var beat =  csvBeat[i] + interpolation * (csvBeat[i+1] - csvBeat[i]);
-	} else var beat =  csvBeat[i];
+	var beat = time2beat(currentSecond, csvAudio, csvBeat);
 
 	var targetMeasure = measureBeat.binaryIndexOf(beat);
 	targetMeasure = rptStructure[targetMeasure];
 
-
-
 	return targetMeasure
 }
+
+function time2currentNotes(currentSecond, csvAudio, csvBeat){
+	var i = csvAudio.binaryIndexOf(currentSecond);
+
+
+}
+
 
 function time2orderedMeasure(currentSecond, csvAudio, csvBeat){
 	var i = csvAudio.binaryIndexOf(currentSecond);
@@ -421,7 +432,7 @@ function time2orderedMeasure(currentSecond, csvAudio, csvBeat){
 function measure2Time(currentMeasure, csvAudio, csvBeat){
 	var i = 0;
 
-	// find nearest playing position that play selectedmeasure
+	// find nearest playing position that play selected measure
 	var candidates = new Array();
 	var pos = rptStructure.indexOf(currentMeasure*1);
 
@@ -474,6 +485,108 @@ function move2Measure(targetMeasure, csvAudio, csvBeat){
 	}
 
 }
+
+function time2beat(currentSecond, csvAudio, csvBeat){
+	var i = csvAudio.binaryIndexOf(currentSecond);
+	var beat;
+	//var beat = csvBeat[i]
+
+	if(i+1 != csvAudio.length){
+		var interpolation = (currentSecond - csvAudio[i]) / (csvAudio[i+1] - csvAudio[i]);
+		if(interpolation<0) interpolation = 0;
+		beat =  csvBeat[i] + interpolation * (csvBeat[i+1] - csvBeat[i]);
+	} else beat =  csvBeat[i];
+
+	return beat;
+}
+
+
+function time2notes(currentSecond, csvAudio, csvBeat, midiNotes, meiNotes){
+	//return xml:id of currently playing notes
+	var beat = time2beat(currentSecond, csvAudio, csvBeat);
+
+	var currentNotes = midiNotes.filter(function(e){return e.beatIndex<beat && e.endIndex>beat});
+	var currentNotesID = [];
+
+	for(var i=0, len=currentNotes.length; i<len; i++){
+		currentNotesID[i] = findMeiIDorVelocity(meiNotes, currentNotes[i]);
+	}
+
+	return currentNotesID
+}
+
+
+function beat2position(beat, meiNotes, svg){
+	var maxIndex = meiNotes.findIndex(function(e){return e.beatIndex > beat} );
+	if (maxIndex == -1) maxIndex = meiNotes.length - 1;
+	var minIndex = meiNotes.slice().reverse().findIndex(function(e){return e.beatIndex <= beat});
+	minIndex = meiNotes.length - 1 - minIndex;
+
+	var precedingNoteID = meiNotes[minIndex].xmlid;
+	var followingNoteID = meiNotes[maxIndex].xmlid;
+
+	var precedingNoteBeat = meiNotes[minIndex].beatIndex;
+	var followingNoteBeat = meiNotes[maxIndex].beatIndex;
+
+
+	var precedingSystemID = findSystemID(precedingNoteID, svg);
+	if(typeof $(svg).find('g[id="'+followingNoteID+'"]' )[0]  ===  'object') var followingSystemID = findSystemID(followingNoteID, svg);
+	else followingSystemID = -1;
+
+	var currentSystem = $(svg).find('g[id="'+precedingSystemID+'"]')[0];
+	var measuresInSystem = $(currentSystem).find('g[class="measure"]')
+
+	var yPos = $(currentSystem).find("path")[0].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+
+
+	var noteSvg = $(svg).find('g[id="'+precedingNoteID+'"]')[0];
+	var xPrecedingPosition = $(noteSvg).find("use")[0].getAttribute("x");
+
+	if (precedingSystemID == followingSystemID){
+		var followingNoteSvg = $(svg).find('g[id="'+followingNoteID+'"]')[0];
+		var xFollowingPosition =  $(followingNoteSvg).find("use")[0].getAttribute("x");
+	}
+	else {
+	    var lastMeasurePath = $(measuresInSystem[measuresInSystem.length -1]).find("path");
+		var positionList = [];
+		for (var i = 0; i<lastMeasurePath.length; i++){
+			var position = lastMeasurePath[i].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+			for (var j = 0; j<position.length; j++){
+			  position[j] = position[j] * 1;
+			}
+				positionList.push(position)
+		}
+
+		var xFollowingPosition = 0;
+		for (var i = 0; i<positionList.length; i++){
+			if (positionList[i][3] > xFollowingPosition) xFollowingPosition = positionList[i][3];
+		}
+	}
+
+	var xPos = Number(xPrecedingPosition) + (Number(xFollowingPosition) - Number(xPrecedingPosition)) / (followingNoteBeat - precedingNoteBeat) * (beat - precedingNoteBeat);
+
+	return [String(xPos), yPos[1], yPos[3]];
+
+}
+
+function findSystemID(xmlid, svg){
+	var parent = $(svg).find('g[id= "'+ xmlid + '"]')[0].parentElement
+	if (parent.getAttribute("class") == "system"){
+		return parent.getAttribute("id");
+	}
+	else 
+		var newID = parent.getAttribute("id");
+		return findSystemID(newID, svg);
+}
+
+function removeLedger(positionList){
+	var lengthList = [];
+
+	for (var i = 0; i<positionList.length; i++){
+
+	}
+}
+
 
 
 function getAudio(url, index, artistName)
@@ -544,31 +657,57 @@ function getMidi(url)
     {
 		
     	timeSignature = [];
+    	midiNoteList = [];
 		midiFile = new MIDIFile(xmlhttp.response);
 		console.log("get midi work");
-
-		var midEvents = midiFile.getTrackEvents(0);
+		var ticksPerBeat = midiFile.header.getTicksPerBeat();
+		var numberOfTracks = midiFile.header.getTracksCount();
 		var j=0;
-		var absoluteTime = 0;
-		var timeSigMeasure = 0;
-		for (var i=0, len=midEvents.length; i<len; i++){
-			absoluteTime = absoluteTime + midEvents[i].delta;
-			if(midEvents[i].subtype == 88) {
-				if(j>0){
-					timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( 480 * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ))
+		var k=0;
+		
+		for (var n=0 ; n < numberOfTracks; n ++){
+			var midEvents = midiFile.getTrackEvents(n);
+
+			var absoluteTime = 0;
+			var timeSigMeasure = 0;
+			for (var i=0, len=midEvents.length; i<len; i++){
+				absoluteTime = absoluteTime + midEvents[i].delta;
+				if(n==0){
+					if(midEvents[i].subtype == 88) {
+						if(j>0){
+							timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( ticksPerBeat * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ))
+						}
+						timeSignature[j] = [midEvents[i], absoluteTime, timeSigMeasure];
+						j++;
+					}
 				}
-				timeSignature[j] = [midEvents[i], absoluteTime, timeSigMeasure];
-				j++;
+				if(midEvents[i].subtype==9){
+					midiNoteList[k] = {'pitch':midEvents[i].param1, 'velocity':midEvents[i].param2 , 'beatIndex':absoluteTime/ticksPerBeat};
+					k++;
+				}
+				if(midEvents[i].subtype==8){
+					for(var reverseIndex = 1; reverseIndex<=k; reverseIndex++){
+						if (midiNoteList[k-reverseIndex].pitch == midEvents[i].param1 && !(midiNoteList[k-reverseIndex].endIndex)){
+							midiNoteList[k-reverseIndex].endIndex = absoluteTime/ticksPerBeat;
+						}
+					}
+				}
 			}
 		}
-
 		var rptInfo = searchRepeatInformation();
 	  	rptStructure = makeRepeatInfoInMeasure(rptInfo);
 	  	measureBeat = makeMeasureInfoInBeat(rptStructure);
+	  	for (var i=0, len = rptStructure.length; i<len; i++){
+	  		midiBeat2xmlBeat[i] = measureBeat[rptStructure[i]];
+	  	}
 
 
+		noteLabel_BeatArray = meiNote2beatArray(xmlDoc);
+		midiNoteList.sort(function(a,b){ return a.beatIndex - b.beatIndex});
+		mei2midiMapArray = mei2midiMatching(midiNoteList, noteLabel_BeatArray);
 
 
+        applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray)
 
 
     }
