@@ -6,6 +6,7 @@ var audioFile;
 var playingOn=false;
 var loadCompleted = false;
 var loadInterupted = false;
+// var drawProgressIndex = 0;
 
 var currentFileIndex = 1;
 var theData = [ [] ];
@@ -66,11 +67,21 @@ window.onload=function(){
 
 
 	var canvas = document.getElementById("progressCanvas");
+	canvas.width = $('#playingBar').width();
 	canvas.addEventListener("mousedown", doMouseDown, false);
+
+
+    // var canvasWidth = document.getElementById("progressCanvas").width;
+    // var canvasHeight = document.getElementById("progressCanvas").height;
+
+
 	
 	loadFiles(sourceDir);
 
 	audioContext = new contextClass();
+
+
+
 
 }
 
@@ -248,7 +259,9 @@ function playSound(audioBuffer) {
   sourceNode.start(0, startOffset % audioBuffer.duration);
   sourceNode2.start(0, startOffset % audioBuffer.duration);
 	playingOn = true;
-	drawProgress(document.getElementById("progressCanvas"));
+
+  drawProgress(document.getElementById("progressCanvas"));
+
 }
 
 function pause() {
@@ -268,7 +281,7 @@ function stop() {
   	sourceNode2.stop();
 	startOffset = 0;
 	playingOn = false;
-	drawProgress(document.getElementById("progressCanvas"));
+	// drawProgress(document.getElementById("progressCanvas"));
 }
 
 function switchAudio(targetIndex){
@@ -314,6 +327,8 @@ function doMouseDown(e){
 	//var currentTime = remainingSeconds;
 	var rect = e.target.getBoundingClientRect();
 	var x= e.clientX-rect.left - e.target.clientLeft + e.target.scrollLeft;
+	var x= e.clientX
+	canvasWidth = $(window).width()
 
 	canvas_x = x/canvasWidth * theData[currentFileIndex][0].length / theData[currentFileIndex][0].sampleRate;
 	
@@ -334,7 +349,7 @@ function doMouseDown(e){
 		}
 
 		$(measureNumber).val(playedMeasureNumber)
-	    highlightingMeausre(xmlid);
+	    // highlightingMeasure(xmlid);
 	}
 
 }
@@ -346,16 +361,16 @@ function doMouseDown(e){
 
 function drawProgress(canvas){
 	var progress = canvas.getContext("2d");
-	var gradient = progress.createLinearGradient(0, 0, 170, 0);
-	gradient.addColorStop(0, "white");
-	gradient.addColorStop(1, "orange");
-
+	// var gradient = progress.createLinearGradient(0, 0, 170, 0);
+	// gradient.addColorStop(0, "white");
+	// gradient.addColorStop(1, "orange");
+	canvasWidth = canvas.width;
 	var currentProgressInX = startOffset * canvasWidth /theData[currentFileIndex][0].length * theData[currentFileIndex][0].sampleRate;
 	progress.clearRect(0, 0, canvas.width, canvas.height);
 
 	progress.beginPath();
 	progress.rect(0,0,currentProgressInX,canvas.height)
-	progress.fillStyle = gradient;
+	progress.fillStyle = "#29486D";
 	progress.fill();
 
     progress.stroke();    
@@ -372,7 +387,7 @@ function drawProgress(canvas){
     	}
 
     	$(measureNumber).val(playedMeasureNumber)
-        highlightingMeausre(xmlid);
+        // highlightingMeasure(xmlid);
 
         // var playedNotesID = time2notes(startOffset +0.05, theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray);
         // console.log(playedNotesID);
@@ -381,14 +396,14 @@ function drawProgress(canvas){
         // }
 
         showPlaybar(startOffset + 0.05,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
-
+		requestAnimFrame(function() {
+			drawProgress(document.getElementById("progressCanvas"))
+		});
     }
+
     
-    
-    
-	requestAnimFrame(function() {
-		drawProgress(document.getElementById("progressCanvas"))
-	});
+    // drawProgressIndex++;
+
 }
 
 
@@ -559,7 +574,7 @@ function beat2position(beat, meiNotes, svg){
 
 		var xFollowingPosition = 0;
 		for (var i = 0; i<positionList.length; i++){
-			if (positionList[i][3] > xFollowingPosition) xFollowingPosition = positionList[i][3];
+			if (positionList[i][2] > xFollowingPosition) xFollowingPosition = positionList[i][2];
 		}
 	}
 
@@ -610,6 +625,7 @@ function getAudio(url, index, artistName)
 		context.decodeAudioData(xmlhttp.response, function(audioBuffer){
 			theData[index][0] = audioBuffer;
 			theData[index][1] = getCsv(url+artistName+".csv");
+			theData[index][2] = getCsv(url+artistName+"_vel.csv");
 			// var surName = artistName.split(",")[0]
 			// var performIndexOfSameArtist = /\([0-9]\)/.exec(artistName);
 
@@ -627,7 +643,7 @@ function getAudio(url, index, artistName)
             if (loadedFileNumber == selectedAudioList.length){
             	loadCompleted = true;
             	makeArtistButton(selectedAudioList, "#audioFile-buttons");
-            	$(loadAudio).removeClass("btn btn-primary").addClass("btn btn-success");
+            	$(loadAudio).removeClass("btn btn-darkblue").addClass("btn panel-default");
 
             }
 
@@ -1166,7 +1182,7 @@ function makeArtistButton(inputArray, buttonClass) {
 
 
 		if (i==0){
-			var button='<button class="btn btn-primary" id="'+unescape(artistName)+'" >'+surName+'</button>' 
+			var button='<button class="btn btn-darkblue" id="'+unescape(artistName)+'" >'+surName+'</button>' 
 			} else{
 			var button='<button class="btn btn-default" id="'+unescape(artistName)+'" >'+surName+'</button>'
 		}

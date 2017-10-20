@@ -6,7 +6,7 @@
 
 
 <head>
-  <title>WebScore Ver.1.0</title>
+  <title>PerformScore Ver.1.0</title>
   <script src="verovio-toolkit20170925.js" type="text/javascript" ></script>
   <!-- We also use jQuery for this example -->
   <script src="jquery-2.2.4.min.js" type="text/javascript" ></script>
@@ -19,19 +19,39 @@
   <link rel="stylesheet" href="jquery.multiselect.css"></link>
   <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"></link>
   <link rel="stylesheet" href="jquery-ui.css"></link>
+  <link rel="stylesheet" href="custom-theme.min.css"></link>
   <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
 
   <header>
-    <h1>WebScore</h1>
+    <h1 style="text-align:left;float:left;">PerformScore</h1>
+<!--     <h3 style="text-align:right;float:right;">Made by MAC Lab, KAIST</h3>
+ -->    <img src="logo_mac.png"  style="height:60px;margin-top:10px;margin-right:10px;float:right;" >
   </header>
+
+<div id="playingBar">
+  <canvas id="progressCanvas" align="center" </canvas>
+</div>
 
 <div id="wrapper">
 
   <div id="sidebar">
+
+    <div id="menu" align="center">
+      <button class="btn btn-circle btn-panel-default btn-lg" data-action="play">
+        <i class="glyphicon glyphicon-play"></i>
+      </button>
+      <button class="btn btn-circle btn-panel-default btn-lg" data-action="pause">
+        <i class="glyphicon glyphicon-pause" pointer-events:none></i>
+      </button>
+      <button class="btn btn-circle btn-panel-default btn-lg" data-action="stop">
+        <i class="glyphicon glyphicon-stop"></i>
+      </button>
+    </div>
+
     <h3> Composer</h3>
 
     <div class="dropdown">
-      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonComposer" >Select Composer
+      <button class="btn panel-default dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonComposer" >Select Composer
       <span class="caret"></span></button>
       <ul style="overflow-y:auto; width:200px; height=150px;" class="dropdown-menu" id="composerUl">
       </ul>
@@ -39,7 +59,7 @@
     <h3> Piece </h3>
 
     <div class="dropdown" >
-      <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonPiece">Select Piece
+      <button class="btn panel-default dropdown-toggle" type="button" data-toggle="dropdown" id = "dropButtonPiece">Select Piece
       <span class="caret"  >
 	   </span>
 	  </button>
@@ -53,22 +73,11 @@
 	  <input type="number" id="measureNumber"></input>
 	</div>
 
-	<div id="menu">
-	  <button class="btn btn-circle btn-info btn-lg" data-action="play">
-        <i class="glyphicon glyphicon-play"></i>
-      </button>
-      <button class="btn btn-circle btn-info btn-lg" data-action="pause">
-        <i class="glyphicon glyphicon-pause" pointer-events:none></i>
-      </button>
-      <button class="btn btn-circle btn-info btn-lg" data-action="stop">
-        <i class="glyphicon glyphicon-stop"></i>
-      </button>
-    </div>
 
 	
 	<div id="artist">
 	  Artist
-    <button class="btn btn-success" id="loadAudio">Load Audio</button>
+    <button class="btn panel-default" id="loadAudio">Load Audio</button>
 	</div>
 
   <div >
@@ -85,9 +94,9 @@
 
   <div id="sub_wrapper">
 
-    <div id="progressBar" style="height:50" >
+<!--     <div id="progressBar" style="height:50" >
       <canvas id="progressCanvas" width="780" height="30" align="center" </canvas>
-	</div>
+	</div> -->
 
     <div id="output"/>  
     </div>
@@ -106,32 +115,70 @@
 <style>
 
   header {
-    background-color:#1594E5;
+/*    background-color:#1594E5;
     color:white;
-    text-align:center;
-    padding:5px;
+    text-align:center;*/
+    background-color: white;
+    text-align:left-center;
+    margin-top:0px;
+    /*margin-left: 0px;*/
+    height:80px;
+    padding:0px;
 
+  }
+
+  h1 {
+    margin-top:0px;
+    padding-left:20px;
+    padding-top:20px;
+  }
+
+  h3 {
+    margin-top:0px;
+    padding-left:20px;
+    padding-top:30px;
+    margin-right:10px;
+  }
+
+
+
+
+  #playingBar{
+    height: 12px;
+    background-color:#F0F0F0;
+    transition: transform 200ms ease-in-out;
+
+  }
+
+
+  #playingBar:hover {
+    /*height: 30px;*/
+    /*background:#29486D;*/
+    /*-webkit-transform: scale(2.5);
+            transform: scale(2.5);*/
+     -webkit-transform: scaleY(2.5);
+     transition: transform 200ms ease-in-out;
   }
 
   #wrapper{
 	border: 1px; /* solid #FFBB00;*/
-	width: 1800px;
+	width: 1700px;
 	padding: 10px;
 	position: absolute;
-    left: 30%;
-	margin-left:-586px;
-	top: 80px;
-	overflow: hidden; ;
+    left: 0%;
+	margin-left:10px;
+	top: 100px;
+	overflow: hidden; 
 	}
 
   #sub_wrapper{
-    float:right;
+    float:left;
     padding:10px;
 	border-radius: 20px;  
-	width: 1400px; 
+	width: 1400; 
 	margin-top: 20px; 
 	margin-bottom: 20px;
-	margin-right: 50px;
+	margin-right: 30px;
 	margin-left: 0px;
     background-color: white;
 	} /* width : 972*/
@@ -140,25 +187,30 @@
 
   #sidebar {
     float:right;
-	border-radius: 20px;  
-    width:250px;
-    padding:20px;
+	border-radius: 10px;  
+    width:240px;
+    padding:15px;
 	margin-top: 20px; 
 	font-size: 20px;
     background-color: white;
+    border-style: solid;
+    border-color: #F0F0F0;
+    border-width: 2px;
   } /* width : 150 */
 
   #output{
     float:left;
-	width: 896px; 
+  	width: 896px; 
   } 
 
   body{
-    background-color: #F0F0F0 ;
+    /*background-color: #F0F0F0 ;*/
+    background-color: white;
   }
 
   #menu{
-    width: 160px;
+    float:center;
+    width: 200px;
     margin-top: 20px;
     margin-left: auto;
     margin-right: auto;
@@ -202,22 +254,23 @@
   }
 
   .btn-circle.btn-lg {
-    width: 40px;
-    height: 40px;
-    padding: 6px 10px;
+    width: 60px;
+    height: 60px;
+    padding: 10px;
     font-size: 18px;
     line-height: 1.33;
-    border-radius: 25px;
+    border-radius: 30px;
   }
 
-/*  #progressCanvas {
+  #progressCanvas {
     padding-left: 0;
     padding-right: 0;
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: 0;
+    margin-right: 0;
     display: block;
-    width: 600px;
-  }*/
+    width: 100%;
+    height: 12px;
+  }
 
 
 </style>  
@@ -362,20 +415,25 @@
 
       load_page();
       move2Measure($(measureNumber).val(), theData[currentFileIndex][1], theData[0][1]);
-      highlightingMeausre(xmlid);
+      // highlightingMeasure(xmlid);
 
     });
 
     $(artistSelect).change(function() {
 
-       $(loadAudio).removeClass("btn btn-success").addClass("btn btn-primary");
+       $(loadAudio).removeClass("btn panel-default").addClass("btn btn-darkblue");
 
     });
 
 
-    
-  
+    $('playingBar').hover(function(){
+      $('playingBar').css('height', '150px')
+    })
 
+
+    $('playingBar').hover(
+      function() { console.log('hello') },
+    );
     //$(output)[0].addEventListener("mouseover", mouseOver);
 
 
@@ -387,10 +445,11 @@
       var selectedMeasure = $(xmlDoc).find('measure[xml\\:id="'+this.id+'"]')[0].getAttribute('n');
       $(measureNumber).val(selectedMeasure);
       move2Measure(selectedMeasure, theData[currentFileIndex][1], theData[0][1]);
-      highlightingMeausre(this.id);
+      // highlightingMeasure(this.id);
     }
 
-    function highlightingMeausre(xmlid){
+    function highlightingMeasure(xmlid){
+      return
       var svgData = $(xmlSvg).find('g[id= "'+ xmlid + '"]').find("path");
       var positionList = [];
       for (var i = 0; i<svgData.length; i++){
@@ -473,16 +532,21 @@
         // var velocity = findMeiIDorVelocity(midiArray, meiNote);
           var meiNoteIndex = meiArray.findIndex(function(e){return e.xmlid==xmlid});
           if (typeof(mei2midiMapArray[meiNoteIndex]) != "undefined"){
-            var velocity = midiArray[mei2midiMapArray[meiNoteIndex]].velocity;
+            if (typeof(theData[currentFileIndex]) != "undefined"){
+              var velocity = theData[currentFileIndex][2][mei2midiMapArray[meiNoteIndex]];
+            }
+            else var velocity = midiArray[mei2midiMapArray[meiNoteIndex]].velocity;
           }
         }
 
+        var note = document.getElementById(xmlid);
+        // note.style.opacity = Math.max(Math.pow(Number(velocity),3)/Math.pow(127,3), 0.2);
+        note.style.opacity = Math.max(Number(velocity)/127, 0.2);
 
-
-        $(svg).find('g[id= "'+ xmlid + '"]').css({'opacity': Number(velocity/128)})
+        // $(svg).find('g[id= "'+ xmlid + '"]').css({'opacity': Number(velocity/128)})
       }
-      var stringSvg = s.serializeToString(svg);
-      $("#output").html(stringSvg);
+      // var stringSvg = s.serializeToString(svg);
+      // $("#output").html(stringSvg);
 
       var measures = $(svg).find("g[class=measure]")
 
@@ -542,9 +606,9 @@
    //  }
 
     function set_options( ) {
-      pageHeight = calc_page_height();
-      pageWidth = calc_page_width();
-      border = 30;
+      var pageHeight = calc_page_height() - $('#sidebar').width();
+      var pageWidth = calc_page_width();
+      var border = 30;
       options = {
                   inputFormat: format,
                   pageHeight: pageHeight,
@@ -602,16 +666,17 @@
         if (id == "audioFile-buttons") return
         var index = selectedAudioList.indexOf(id);
 
-        $("[id='"+id+"']").removeClass("btn btn-default").addClass("btn btn-primary");
+        $("[id='"+id+"']").removeClass("btn btn-default").addClass("btn btn-darkblue");
         //$('#'+unescape(id)).removeClass("btn btn-default").addClass("btn btn-primary");
 
         for(var i=0, len=selectedAudioList.length; i<len; i++){
-          if (i!=index) $("[id='"+selectedAudioList[i]+"']").removeClass("btn btn-primary").addClass("btn btn-default");
+          if (i!=index) $("[id='"+selectedAudioList[i]+"']").removeClass("btn btn-darkblue").addClass("btn btn-default");
         }
 
         if(playingOn) switchAudio(index+1);
         else playSound(theData[index+1][0]);
         currentFileindex = index + 1;
+        applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray)
       }
     }
     new selectAudio(document.getElementById('audioFile-buttons'));
@@ -662,7 +727,7 @@
         if(loadedFileNumber == selectedAudioList.length){
           loadCompleted = true;
           makeArtistButton(selectedAudioList, "#audioFile-buttons");
-          $(loadAudio).removeClass("btn btn-primary").addClass("btn btn-success");
+          $(loadAudio).removeClass("btn btn-darkblue").addClass("btn panel-default");
         }
 
         //getAudioByList(selectedAudioList, sourceDir);
@@ -671,10 +736,6 @@
 
     new loadSelectedAudio(document.getElementById('loadAudio'));
 
-
-
-    var canvasWidth = document.getElementById("progressCanvas").width;
-    var canvasHeight = document.getElementById("progressCanvas").height;
 
 
 
