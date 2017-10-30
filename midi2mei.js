@@ -69,6 +69,10 @@ function mei2midiMatching(midiNotes, meiNotes){
 	}
 	for (var i=0, len=meiNotes.length; i<len;i++){
 		if (typeof mappingList[i] == 'undefined'){
+            // var beat = meiNotes[i].beatIndex; //xmlbeat
+            // var midiMeasure = midiBeat2xmlBeat.binaryIndexOf(beat) // 
+            // var midiBeat = beat + (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
+
 			var candidates = midiNotes.filter(function(e){return (Math.abs(e.beatIndex-meiNotes[i].beatIndex) < 1) });
 			for (var j=0, canLen = candidates.length; j<canLen; j++){
 				if (candidates[j].pitch == meiNotes[i].pitch && mappingList.indexOf(midiNotes.indexOf(candidates[j])) == -1 ){
@@ -91,6 +95,7 @@ function meiNote2beatArray(mei){
 
 	for (var n =1; n<=numberOfMeasures; n++){
 		var measureStartBeat = midiBeat2xmlBeat[rptStructure.indexOf(n)]; // save the beat position of measure start
+		// var measureStartBeat = xmlBeat2midiBeat[n]; 
 		var layers = $(mei).find('measure[n="' + n + '"]').find('layer')
 		for (var i=0, len= layers.length ; i<len; i++){
 			var numberOfnotes = $(layers[i]).find('note, rest').length
@@ -99,13 +104,14 @@ function meiNote2beatArray(mei){
 			for (var j=0; j < numberOfnotes; j++){
 				var note = $(layers[i]).find('note, rest')[j];
 				var dots = note.getAttribute('dots')
-				var tuplet = (note.parentElement.parentElement.tagName == 'tuplet');
-				var tupletType = note.parentElement.parentElement.getAttribute('num');
+				var tuplet = (note.parentElement.parentElement.tagName == 'tuplet' || note.parentElement.tagName == 'tuplet' );
+				var tupletType = note.parentElement.parentElement.getAttribute('num') / note.parentElement.parentElement.getAttribute('numbase');
+				if (tuplet &&  (typeof(tupletType) == "undefined" || isNaN(tupletType) ))tupletType = note.parentElement.getAttribute('num') / note.parentElement.getAttribute('numbase')
 				var noteBeatLength = 4 / Number(note.getAttribute('dur'));
 				if (dots==1) noteBeatLength = noteBeatLength * 1.5; 
-				if (tuplet) noteBeatLength = noteBeatLength/ tupletType * 2;
+				if (tuplet) noteBeatLength = noteBeatLength/ tupletType;
 				if (note.getAttribute('grace')) noteBeatLength = 0;
-
+					
 				if (note.tagName == 'note'){
 					var noteLabel = note.getAttribute('xml:id');
 					var notePitch = Number(note.getAttribute('pnum'));
@@ -119,7 +125,7 @@ function meiNote2beatArray(mei){
 				if (note.parentElement.tagName == "chord"){ //if this note is in chord,
 					if ($(note).is(":last-child")){
 						noteBeatLength = 4/ Number(note.parentElement.getAttribute('dur'));
-						if (note.parentElement.parentElement.parentElement.tagName == 'tuplet') noteBeatLength = noteBeatLength/ note.parentElement.parentElement.parentElement.getAttribute('num') * 2;
+						if (note.parentElement.parentElement.parentElement.tagName == 'tuplet') noteBeatLength = noteBeatLength/ note.parentElement.parentElement.parentElement.getAttribute('num') * note.parentElement.parentElement.parentElement.getAttribute('numbase');
 						if (note.parentElement.getAttribute('dots') == 1) noteBeatLength = noteBeatLength * 1.5
 						beatIndexInLayer += noteBeatLength;
 					}

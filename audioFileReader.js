@@ -6,6 +6,7 @@ var audioFile;
 var playingOn=false;
 var loadCompleted = false;
 var loadInterupted = false;
+var tempoCurveOn = false;
 // var drawProgressIndex = 0;
 
 var currentFileIndex = 1;
@@ -18,6 +19,7 @@ var measureBeat = [];
 var midiNoteList = [];
 var noteLabel_BeatArray = [];
 var midiBeat2xmlBeat = [];
+var xmlBeat2midiBeat =[];
 var mei2midiMapArray =[];
 
 var sourceDir = "sourceFilesExample/";
@@ -250,6 +252,9 @@ function setupAudioNodes() {
 function playSound(audioBuffer) {
 	if (loadCompleted == false) return;
 	if (startOffset < 0 ) startOffset =0;
+
+	pause();
+
 	setupAudioNodes(); //이거 사실 한번만 호출해 두면 될 것 같은데...
 	startTime = audioContext.currentTime;
   sourceNode.buffer = audioBuffer;
@@ -260,8 +265,7 @@ function playSound(audioBuffer) {
   sourceNode2.start(0, startOffset % audioBuffer.duration);
 	playingOn = true;
 
-  drawProgress(document.getElementById("progressCanvas"));
-
+	 drawProgress(document.getElementById("progressCanvas"));
 }
 
 function pause() {
@@ -288,16 +292,23 @@ function switchAudio(targetIndex){
 	if (targetIndex == currentFileIndex) return;
 
 	if(playingOn) {
-    sourceNode2.stop();
-    sourceNode2 = audioContext.createBufferSource();
-    sourceNode2.buffer = sourceNode.buffer;
-    gainNode2 = audioContext.createGain();
-    sourceNode2.connect(gainNode2);
-    gainNode2.connect(audioContext.destination);
-    //gainNode2.gain.value = 0.0;
-    sourceNode2.start(0, startOffset % sourceNode.buffer.duration);
-    sourceNode.stop();
-  }
+	    sourceNode2.stop();
+	    sourceNode2 = audioContext.createBufferSource();
+	    sourceNode2.buffer = sourceNode.buffer;
+	    gainNode2 = audioContext.createGain();
+	    sourceNode2.connect(gainNode2);
+	    gainNode2.connect(audioContext.destination);
+	    //gainNode2.gain.value = 0.0;
+	    sourceNode2.start(0, startOffset % sourceNode.buffer.duration);
+	    sourceNode.stop();
+	  } else {
+	  	currentFileIndex = targetIndex; 
+	  	applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray);
+	  	drawTempoCurve(xmlSvg, midiNoteList, noteLabel_BeatArray, theData[0][1]);
+  		if (startOffset) startOffset = indexInterpolation(startOffset, theData[currentFileIndex][1], theData[targetIndex][1]); // 재생시간을 앞서 멈췄던 부분과 같은 음표로 조정
+		if (isNaN(startOffset)) startOffset = 0; // 에러 방지용
+	  	return
+	  }
 
   sourceNode = audioContext.createBufferSource();
   gainNode1 = audioContext.createGain();
@@ -350,6 +361,8 @@ function doMouseDown(e){
 
 		$(measureNumber).val(playedMeasureNumber)
 	    // highlightingMeasure(xmlid);
+	    drawProgress(document.getElementById("progressCanvas"));
+	    showPlaybar(startOffset ,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
 	}
 
 }
@@ -395,7 +408,7 @@ function drawProgress(canvas){
         // 	highlightingNote(playedNotesID[i])
         // }
 
-        showPlaybar(startOffset + 0.05,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
+        showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
 		requestAnimFrame(function() {
 			drawProgress(document.getElementById("progressCanvas"))
 		});
@@ -495,8 +508,10 @@ function move2Measure(targetMeasure, csvAudio, csvBeat){
 		pause();
 		startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
 		playSound(theData[currentFileIndex][0]);
+		drawProgress
 	} else{
 		startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
+		showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
 	}
 
 }
@@ -532,37 +547,80 @@ function time2notes(currentSecond, csvAudio, csvBeat, midiNotes, meiNotes){
 
 
 function beat2position(beat, meiNotes, svg){
-	var maxIndex = meiNotes.findIndex(function(e){return e.beatIndex > beat} );
-	if (maxIndex == -1) maxIndex = meiNotes.length - 1;
-	var minIndex = meiNotes.slice().reverse().findIndex(function(e){return e.beatIndex <= beat});
-	minIndex = meiNotes.length - 1 - minIndex;
+	
 
+	var maxIndex = meiNotes.findIndex(function(e){return e.beatIndex > beat+0.000001} );
+	if (maxIndex == -1) maxIndex = meiNotes.length - 1;
+	// var minIndex = meiNotes.slice().reverse().findIndex(function(e){return e.beatIndex <= beat});
+	// minIndex = meiNotes.length - 1 - minIndex;
+	var minIndex = maxIndex -1;
+	var xPositionList = [];
+	// if (typeof(meiNotes[minIndex] ) == "undefined") console.log([minIndex, beat]);
 	var precedingNoteID = meiNotes[minIndex].xmlid;
 	var followingNoteID = meiNotes[maxIndex].xmlid;
 
 	var precedingNoteBeat = meiNotes[minIndex].beatIndex;
 	var followingNoteBeat = meiNotes[maxIndex].beatIndex;
 
+		// var noteSvg = $(svg).find('g[id="'+precedingNoteID+'"]')[0];
 
+	for (var i=0; minIndex-i>=0; i++){
+		if(meiNotes[minIndex-i].beatIndex != precedingNoteBeat) break
+		var candidateID = meiNotes[minIndex-i].xmlid;
+		var noteSvg = document.getElementById(candidateID);
+		if(noteSvg === null) return
+		var candidatePosition  = noteSvg.getElementsByTagName("use")[0].getAttribute('x');
+
+		xPositionList.push(candidatePosition)
+	}
+	xPositionList = xPositionList.sort(function(a,b){return Number(a)-Number(b)});
+	var xPrecedingPosition = xPositionList[0];
+	// var xPrecedingPosition = $(noteSvg).find("use")[0].getAttribute("x");
+
+
+	var time1 = new Date();
 	var precedingSystemID = findSystemID(precedingNoteID, svg);
-	if(typeof $(svg).find('g[id="'+followingNoteID+'"]' )[0]  ===  'object') var followingSystemID = findSystemID(followingNoteID, svg);
+	if(typeof $(svg).find('g[id="'+followingNoteID+'"]')[0] ===  'object') var followingSystemID = findSystemID(followingNoteID, svg);
 	else followingSystemID = -1;
 
-	var currentSystem = $(svg).find('g[id="'+precedingSystemID+'"]')[0];
-	var measuresInSystem = $(currentSystem).find('g[class="measure"]')
+	if(followingNoteBeat == precedingNoteBeat){
+		followingNoteBeat = meiNotes[maxIndex].endIndex;
+		followingSystemID = -1;
+	}
 
-	var yPos = $(currentSystem).find("path")[0].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
 
+	// var currentSystem = $(svg).find('g[id="'+precedingSystemID+'"]')[0];
+	var currentSystem = document.getElementById(precedingSystemID);
 
-	var noteSvg = $(svg).find('g[id="'+precedingNoteID+'"]')[0];
-	var xPrecedingPosition = $(noteSvg).find("use")[0].getAttribute("x");
+	// var measuresInSystem = $(currentSystem).find('g[class="measure"]')
+	var measuresInSystem = currentSystem.getElementsByClassName("measure");
+
+	// var yPos = $(currentSystem).find("path")[0].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+	var yPos = currentSystem.getElementsByTagName("path")[0].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
+
 
 	if (precedingSystemID == followingSystemID){
-		var followingNoteSvg = $(svg).find('g[id="'+followingNoteID+'"]')[0];
-		var xFollowingPosition =  $(followingNoteSvg).find("use")[0].getAttribute("x");
+		// var followingNoteSvg = $(svg).find('g[id="'+followingNoteID+'"]')[0];
+		xPositionList = [];
+		for (var i=0, len = 10; i<len; i++){
+			if ( maxIndex+i == meiNotes.length || meiNotes[maxIndex+i].beatIndex > followingNoteBeat+0.000001) break
+			var candidateID = meiNotes[maxIndex+i].xmlid;
+			var noteSvg = document.getElementById(candidateID);
+			var candidatePosition  = noteSvg.getElementsByTagName("use")[0].getAttribute('x');
+
+			xPositionList.push(candidatePosition)
+		}
+		xPositionList = xPositionList.sort(function(a,b){return Number(a)-Number(b)});
+		var xFollowingPosition = xPositionList[0];
+
+		// var followingNoteSvg = document.getElementById(followingNoteID);
+		// var xFollowingPosition =  followingNoteSvg.getElementsByTagName("use")[0].getAttribute("x");
+
+		// var xFollowingPosition =  $(followingNoteSvg).find("use")[0].getAttribute("x");
 	}
 	else {
-	    var lastMeasurePath = $(measuresInSystem[measuresInSystem.length -1]).find("path");
+	    // var lastMeasurePath = $(measuresInSystem[measuresInSystem.length -1]).find("path");
+	    var lastMeasurePath = measuresInSystem[measuresInSystem.length -1].getElementsByTagName("path");
 		var positionList = [];
 		for (var i = 0; i<lastMeasurePath.length; i++){
 			var position = lastMeasurePath[i].getAttribute('d').replace(/[A-Z]/g,'').split(' ')
@@ -577,6 +635,12 @@ function beat2position(beat, meiNotes, svg){
 			if (positionList[i][2] > xFollowingPosition) xFollowingPosition = positionList[i][2];
 		}
 	}
+	var time2 = new Date();
+
+	// var time3 = new Date();
+
+	// console.log(time2-time1);
+	// console.log(time3-time2);
 
 	var xPos = Number(xPrecedingPosition) + (Number(xFollowingPosition) - Number(xPrecedingPosition)) / (followingNoteBeat - precedingNoteBeat) * (beat - precedingNoteBeat);
 
@@ -584,8 +648,36 @@ function beat2position(beat, meiNotes, svg){
 
 }
 
+function beat2tempo(beat1, csvAudio, csvBeat){
+	var index1 = csvBeat.binaryIndexOf(beat1);
+	if (index1 == csvBeat.length-1) return 0;
+	var audio1 = csvAudio[index1] ;
+
+	var beat2 = csvBeat[index1+1];
+	var audio2 = csvAudio[index1+1];
+
+
+	if (audio1 == audio2) {
+		for(var i =2, len= csvAudio.length - index1; i<len; i++){
+			if(csvAudio[index1+i] != csvAudio[index1]){
+				audio2 = csvAudio[index1+i];
+				beat2 = csvBeat[index1+i];
+				break
+			}
+		}
+	} 
+
+	var tempo =  (beat2-beat1) / (audio2 - audio1);
+
+
+	return tempo
+
+}
+
+
 function findSystemID(xmlid, svg){
-	var parent = $(svg).find('g[id= "'+ xmlid + '"]')[0].parentElement
+	// var parent = $(svg).find('g[id= "'+ xmlid + '"]')[0].parentElement
+	var parent = document.getElementById(xmlid).parentElement
 	if (parent.getAttribute("class") == "system"){
 		return parent.getAttribute("id");
 	}
@@ -715,6 +807,7 @@ function getMidi(url)
 	  	measureBeat = makeMeasureInfoInBeat(rptStructure);
 	  	for (var i=0, len = rptStructure.length; i<len; i++){
 	  		midiBeat2xmlBeat[i] = measureBeat[rptStructure[i]];
+	  		xmlBeat2midiBeat[i] = measureBeat[rptStructure.indexOf(i)];
 	  	}
 
 
@@ -724,6 +817,7 @@ function getMidi(url)
 
 
         applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray)
+        drawTempoCurve(xmlSvg, midiNoteList, noteLabel_BeatArray, theData[0][1]);
 
 
     }

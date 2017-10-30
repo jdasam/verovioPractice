@@ -511,10 +511,9 @@
     }
 
     function showPlaybar(currentSecond, csvAudio, csvBeat, midiNotes, meiNotes, svg){
-      var beat = time2beat(currentSecond, csvAudio, csvBeat); //midibeat
-      var midiMeasure = measureBeat.binaryIndexOf(beat); //midimeasure
+      var beat = time2beat(currentSecond, csvAudio, csvBeat);
+      var midiMeasure = measureBeat.binaryIndexOf(beat);
       beat = beat - (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
-
 
       var posList = beat2position(beat, meiNotes, svg);
 
@@ -591,12 +590,7 @@
         // var velocity = findMeiIDorVelocity(midiArray, meiNote);
           var meiNoteIndex = meiArray.findIndex(function(e){return e.xmlid==xmlid});
           if (typeof(mei2midiMapArray[meiNoteIndex]) != "undefined"){
-            // var beat = meiArray[meiNoteIndex].beatIndex; //xmlbeat
-            // var midiMeasure = midiBeat2xmlBeat.binaryIndexOf(beat) // 
-            // var midiBeat = beat + (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
-
             beatInPage.push(  meiArray[meiNoteIndex].beatIndex);
-            // beatInPage.push(midiBeat);
           }
 
         }
@@ -642,7 +636,7 @@
 
       tempoCurve.setAttribute("d", pathCum);
       tempoCurve.style.stroke = 'blue';
-      tempoCurve.style.strokeWidth = 60;
+      tempoCurve.style.strokeWidth = 30;
       tempoCurve.style.strokeOpacity = 0.7;
       tempoCurve.style.fillOpacity = 0;
 
