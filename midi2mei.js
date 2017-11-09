@@ -15,9 +15,14 @@ function findMeiIDorVelocity(noteArray, searchkeyNote, option_indexOnly){
 	if (searchkeyNote) var searchElement = searchkeyNote.beatIndex
 	else return
 
-    var midiMeasure = measureBeat.binaryIndexOf(searchElement);
-    searchElement = searchElement - (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
-
+	if (searchkeyNote.velocity){
+	    var midiMeasure = measureBeat.binaryIndexOf(searchElement);
+	    searchElement = searchElement - (measureBeat[midiMeasure] - midiMeasure2xmlBeat[midiMeasure]);
+	}
+	else {
+		var xmlMeasure = xmlMeasureBeat.binaryIndexOf(searchElement);
+		searchElement = searchElement + (xmlMeasure2midiBeat[xmlMeasure] - xmlMeasureBeat[xmlMeasure]);
+	}
 	// if (searchElement < meiNoteArray[minIndex].beatIndex){
 	// 	return 0;
 	// }
@@ -70,10 +75,12 @@ function mei2midiMatching(midiNotes, meiNotes){
 	for (var i=0, len=meiNotes.length; i<len;i++){
 		if (typeof mappingList[i] == 'undefined'){
             // var beat = meiNotes[i].beatIndex; //xmlbeat
-            // var midiMeasure = midiBeat2xmlBeat.binaryIndexOf(beat) // 
-            // var midiBeat = beat + (measureBeat[midiMeasure] - midiBeat2xmlBeat[midiMeasure]);
+            // var midiMeasure = midiMeasure2xmlBeat.binaryIndexOf(beat) // 
+            // var midiBeat = beat + (measureBeat[midiMeasure] - midiMeasure2xmlBeat[midiMeasure]);
+            var xmlMeasure = xmlMeasureBeat.binaryIndexOf(meiNotes[i].beatIndex);
+			var midiBeat = meiNotes[i].beatIndex + (xmlMeasure2midiBeat[xmlMeasure] - xmlMeasureBeat[xmlMeasure]);
 
-			var candidates = midiNotes.filter(function(e){return (Math.abs(e.beatIndex-meiNotes[i].beatIndex) < 1) });
+			var candidates = midiNotes.filter(function(e){return (Math.abs(e.beatIndex-midiBeat) < 1) });
 			for (var j=0, canLen = candidates.length; j<canLen; j++){
 				if (candidates[j].pitch == meiNotes[i].pitch && mappingList.indexOf(midiNotes.indexOf(candidates[j])) == -1 ){
 					mappingList[i] = midiNotes.indexOf(candidates[j]);
@@ -91,11 +98,13 @@ function mei2midiMatching(midiNotes, meiNotes){
 
 function meiNote2beatArray(mei){
 	var numberOfMeasures = $(mei).find('measure').length
-	var noteLabel_BeatArray = []; // 
+	var meiNotesList = []; // 
+	var xmlMeasureBeat = [0];
 
 	for (var n =1; n<=numberOfMeasures; n++){
-		var measureStartBeat = midiBeat2xmlBeat[rptStructure.indexOf(n)]; // save the beat position of measure start
-		// var measureStartBeat = xmlBeat2midiBeat[n]; 
+		var measureStartBeat = midiMeasure2xmlBeat[rptStructure.indexOf(n)]; // save the beat position of measure start
+		xmlMeasureBeat.push(measureStartBeat);
+		// var measureStartBeat = xmlMeasure2midiBeat[n]; 
 		var layers = $(mei).find('measure[n="' + n + '"]').find('layer')
 		for (var i=0, len= layers.length ; i<len; i++){
 			var numberOfnotes = $(layers[i]).find('note, rest').length
@@ -115,11 +124,11 @@ function meiNote2beatArray(mei){
 				if (note.tagName == 'note'){
 					var noteLabel = note.getAttribute('xml:id');
 					var notePitch = Number(note.getAttribute('pnum'));
-					// noteLabel_BeatArray.push([noteLabel, notePitch, beatIndexInLayer]);
-					// noteLabel_BeatArray[0].push(noteLabel);
-					// noteLabel_BeatArray[1].push(notePitch);
-					// noteLabel_BeatArray[2].push(beatIndexInLayer);
-					noteLabel_BeatArray.push({'xmlid': noteLabel, 'pitch': notePitch, 'beatIndex':beatIndexInLayer, 'endIndex':beatIndexInLayer + noteBeatLength})
+					// meiNotesList.push([noteLabel, notePitch, beatIndexInLayer]);
+					// meiNotesList[0].push(noteLabel);
+					// meiNotesList[1].push(notePitch);
+					// meiNotesList[2].push(beatIndexInLayer);
+					meiNotesList.push({'xmlid': noteLabel, 'pitch': notePitch, 'beatIndex':beatIndexInLayer, 'endIndex':beatIndexInLayer + noteBeatLength})
 				}
 
 				if (note.parentElement.tagName == "chord"){ //if this note is in chord,
@@ -134,9 +143,9 @@ function meiNote2beatArray(mei){
 			}
 		}
 	}
-	noteLabel_BeatArray.sort(function(a,b){
+	meiNotesList.sort(function(a,b){
 		return a.beatIndex - b.beatIndex
 	});
 
-	return noteLabel_BeatArray
+	return [meiNotesList, xmlMeasureBeat]
 }

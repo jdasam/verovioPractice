@@ -1,98 +1,5 @@
-var audioContext;
-var sourceNode;
-var startOffset = 0;
-var startTime = 0;
-var audioFile;
-var playingOn=false;
-var loadCompleted = false;
-var loadInterupted = false;
-var tempoCurveOn = false;
-// var drawProgressIndex = 0;
+var midiOnsetBeatList = [];
 
-var currentFileIndex = 1;
-var theData = [ [] ];
-var midiFile;
-
-var timeSignature =[];
-var rptStructure =[];
-var measureBeat = [];
-var midiNoteList = [];
-var noteLabel_BeatArray = [];
-var midiBeat2xmlBeat = [];
-var xmlBeat2midiBeat =[];
-var mei2midiMapArray =[];
-
-var sourceDir = "sourceFilesExample/";
-var fileextension = ".csv";
-var loadedFileNumber = 0;
-
-var composerArray = [];
-var pieceList = []; 
-var artistList = [];
-//var artistListOfPiece = ['Barenboim, Daniel', 'Bernstein, Leonard', 'Cantelli, Guido', 'Dausgaard, Thomas', 'Furtwaengler, Wilhelm', 'Gardiner, John Eliot', 'Herreweghe, Philippe', 'Karajan, Herbert von', 'Klemperer, Otto', 'Kubelik, Rafael', 'Monteux, Pierre']
-var artistListOfPiece = ["Biret, Idil", "Cortot, Alfred", "Cortot, Alfred (2)", "Haas, Monique", "Harasiewicz, Adam", "Horowitz, Vladimir", "Lisiecki, Jan", "Lugansky, Nikolai", "Perahia, Murray", "Pollini, Maurizio", "Richter, Sviatoslav", "Richter, Sviatoslav (2)", "Shebanova, Tatiana", "Vasary, Tamas"];
-var selectedAudioList = [];
-var selectedAudioPrev = [];
-// var pieceAddress =[];
-
-var contextClass = (window.AudioContext || 
-  window.webkitAudioContext || 
-  window.mozAudioContext || 
-  window.oAudioContext || 
-  window.msAudioContext);
-if (contextClass) {
-  // Web Audio API is available.
-  var context = new contextClass();
-} else {
-  // Web Audio API is not available. Ask the user to use a supported browser.
-  // Does this work?
-  alert('The Web browser does not support WebAudio. Please use the latest version.');
-}
-
-
-
-
-
-window.onload=function(){
-	$("#artistSelect").multiselect({
-		noneSelectedText: "Select Artists",
-		height: 300,
-	});
-
-
-	var items = [];
-	
-	$.getJSON( "dataWithFile.json", function( data ) {
-	  items.push(data);
-	  folder2Composer(items[0]);
-	});
-
-
-	var canvas = document.getElementById("progressCanvas");
-	canvas.width = $('#playingBar').width();
-	canvas.addEventListener("mousedown", doMouseDown, false);
-
-
-    // var canvasWidth = document.getElementById("progressCanvas").width;
-    // var canvasHeight = document.getElementById("progressCanvas").height;
-
-
-	
-	loadFiles(sourceDir);
-
-	audioContext = new contextClass();
-
-
-
-
-}
-
-window.requestAnimFrame = (function(callback) {
-        return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame ||
-        function(callback) {
-          window.setTimeout(callback, 1000 / 60);
-        };
-})();
 
 function loadFiles(urlAddress){
 	stop();
@@ -128,7 +35,6 @@ function loadFiles(urlAddress){
 	theData = [ [] ];
 
 	theData[0][1] = getCsv(urlAddress+'beatIndex.csv');
-
 
 	// for (var i =0, len = artistListOfPiece.length; i<len; i++){
 	// 	theData[i+1] = [ [],[] ];
@@ -259,7 +165,7 @@ function playSound(audioBuffer) {
 	startTime = audioContext.currentTime;
   sourceNode.buffer = audioBuffer;
   sourceNode2.buffer = audioBuffer;
-  gainNode1.gain.value = 0.5;
+  gainNode1.gain.value = 1;
   gainNode2.gain.value = 0.0;
   sourceNode.start(0, startOffset % audioBuffer.duration);
   sourceNode2.start(0, startOffset % audioBuffer.duration);
@@ -303,8 +209,8 @@ function switchAudio(targetIndex){
 	    sourceNode.stop();
 	  } else {
 	  	currentFileIndex = targetIndex; 
-	  	applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray);
-	  	drawTempoCurve(xmlSvg, midiNoteList, noteLabel_BeatArray, theData[0][1]);
+	  	applyVelocity2svg(xmlSvg, midiNotesList, meiNotesList);
+	  	drawTempoCurve(xmlSvg, midiNotesList, meiNotesList, theData[0][1]);
   		if (startOffset) startOffset = indexInterpolation(startOffset, theData[currentFileIndex][1], theData[targetIndex][1]); // 재생시간을 앞서 멈췄던 부분과 같은 음표로 조정
 		if (isNaN(startOffset)) startOffset = 0; // 에러 방지용
 	  	return
@@ -325,10 +231,10 @@ function switchAudio(targetIndex){
 
 	sourceNode.start(0, startOffset % theData[targetIndex][0].duration); // startOffset 위치에서 소스노드를 시작
   //gainNode1.gain.value = 0.5;
-  gainNode2.gain.setValueAtTime(0.5, audioContext.currentTime);
+  gainNode2.gain.setValueAtTime(1, audioContext.currentTime);
   gainNode1.gain.setValueAtTime(0.0001, audioContext.currentTime);
   gainNode2.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 5);
-  gainNode1.gain.exponentialRampToValueAtTime(0.5, audioContext.currentTime + 0.5);
+  gainNode1.gain.exponentialRampToValueAtTime(1, audioContext.currentTime + 0.5);
 	playingOn = true; //재생상태 갱신
 
 	currentFileIndex = targetIndex; //현재 선택한 녹음 인덱스 갱신
@@ -362,7 +268,7 @@ function doMouseDown(e){
 		$(measureNumber).val(playedMeasureNumber)
 	    // highlightingMeasure(xmlid);
 	    drawProgress(document.getElementById("progressCanvas"));
-	    showPlaybar(startOffset ,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
+	    showPlaybar(startOffset ,theData[currentFileIndex][1], theData[0][1], midiNotesList, meiNotesList, xmlSvg);
 	}
 
 }
@@ -402,13 +308,13 @@ function drawProgress(canvas){
     	$(measureNumber).val(playedMeasureNumber)
         // highlightingMeasure(xmlid);
 
-        // var playedNotesID = time2notes(startOffset +0.05, theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray);
+        // var playedNotesID = time2notes(startOffset +0.05, theData[currentFileIndex][1], theData[0][1], midiNotesList, meiNotesList);
         // console.log(playedNotesID);
         // for(var i = 0, len = playedNotesID.length; i<len; i++){
         // 	highlightingNote(playedNotesID[i])
         // }
 
-        showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
+        showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNotesList, meiNotesList, xmlSvg);
 		requestAnimFrame(function() {
 			drawProgress(document.getElementById("progressCanvas"))
 		});
@@ -511,7 +417,7 @@ function move2Measure(targetMeasure, csvAudio, csvBeat){
 		drawProgress
 	} else{
 		startOffset = measure2Time(targetMeasure, csvAudio, csvBeat);
-		showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNoteList, noteLabel_BeatArray, xmlSvg);
+		showPlaybar(startOffset + 0.02,theData[currentFileIndex][1], theData[0][1], midiNotesList, meiNotesList, xmlSvg);
 	}
 
 }
@@ -606,6 +512,9 @@ function beat2position(beat, meiNotes, svg){
 			if ( maxIndex+i == meiNotes.length || meiNotes[maxIndex+i].beatIndex > followingNoteBeat+0.000001) break
 			var candidateID = meiNotes[maxIndex+i].xmlid;
 			var noteSvg = document.getElementById(candidateID);
+			if (! noteSvg){
+				console.log(meiNotes[maxIndex+i]);
+			}
 			var candidatePosition  = noteSvg.getElementsByTagName("use")[0].getAttribute('x');
 
 			xPositionList.push(candidatePosition)
@@ -648,27 +557,71 @@ function beat2position(beat, meiNotes, svg){
 
 }
 
-function beat2tempo(beat1, csvAudio, csvBeat){
-	var index1 = csvBeat.binaryIndexOf(beat1);
-	if (index1 == csvBeat.length-1) return 0;
-	var audio1 = csvAudio[index1] ;
+function beat2tempo(beat1, csvAudio, csvBeat, csvOnset , windowLength){
+	// var index1 = csvBeat.binaryIndexOf(beat1);
+	// if (index1 == csvBeat.length-1) return 0;
+	// var audio1 = csvAudio[index1];
+	// var beat2 = csvBeat[index1+1];
+	// var audio2 = csvAudio[index1+1];
 
-	var beat2 = csvBeat[index1+1];
-	var audio2 = csvAudio[index1+1];
 
+	// if (audio1 == audio2) {
+	// 	for(var i =2, len= csvAudio.length - index1; i<len; i++){
+	// 		if(csvAudio[index1+i] != csvAudio[index1]){
+	// 			audio2 = csvAudio[index1+i];
+	// 			beat2 = csvBeat[index1+i];
+	// 			break
+	// 		}
+	// 	}
+	// } 
+	// var tempo =  (beat2-beat1) / (audio2 - audio1);
 
-	if (audio1 == audio2) {
-		for(var i =2, len= csvAudio.length - index1; i<len; i++){
-			if(csvAudio[index1+i] != csvAudio[index1]){
-				audio2 = csvAudio[index1+i];
-				beat2 = csvBeat[index1+i];
-				break
-			}
-		}
-	} 
+	/*
+    if (windowLength === undefined) {
+      windowLength = 1;
+    }
+    var indexCenter = csvBeat.binaryIndexOf(beat1);
+    var indexLeft = csvBeat.binaryIndexOf(beat1-windowLength/2);
+    var indexRight = csvBeat.binaryIndexOf(beat1+windowLength/2);
 
-	var tempo =  (beat2-beat1) / (audio2 - audio1);
+ 	var beatLeft = csvBeat[indexLeft];
+ 	var beatRight = csvBeat[indexRight];
 
+ 	var audioTimeLeft = csvAudio[indexLeft];
+ 	var audioTimeRight = csvAudio[indexRight];
+
+ 	if (audioTimeRight == audioTimeLeft) audioTimeRight = audioTimeLeft + 0.1;
+
+ 	var tempo = (beatRight - beatLeft) / (audioTimeRight - audioTimeLeft)
+ 	*/
+	if (windowLength === undefined) {
+      windowLength = 2; //half of the window length
+    }
+    windowLength = Math.ceil(windowLength);
+    var indexCenter = csvBeat.binaryIndexOf(beat1);
+    var onsetIndex = csvOnset.binaryIndexOf(beat1);
+    if(onsetIndex-windowLength >= 0 ){
+	    var indexLeft = csvBeat.binaryIndexOf( csvOnset[onsetIndex-windowLength]  );
+	}
+	else{
+	    var indexLeft = csvBeat.binaryIndexOf(csvOnset[0] );
+	}
+	var onsetListLength = csvOnset.length;
+    if(onsetIndex+windowLength < onsetListLength ){
+	    var indexRight = csvBeat.binaryIndexOf( csvOnset[onsetIndex+windowLength]  );
+	}
+	else{
+	    var indexRight = csvBeat.binaryIndexOf( csvOnset[onsetListLength-1] );
+	}
+ 	var beatLeft = csvBeat[indexLeft];
+ 	var beatRight = csvBeat[indexRight];
+
+ 	var audioTimeLeft = csvAudio[indexLeft];
+ 	var audioTimeRight = csvAudio[indexRight];
+
+ 	if (audioTimeRight == audioTimeLeft) audioTimeRight = audioTimeLeft + 0.1;
+
+ 	var tempo = (beatRight - beatLeft) / (audioTimeRight - audioTimeLeft)
 
 	return tempo
 
@@ -685,6 +638,30 @@ function findSystemID(xmlid, svg){
 		var newID = parent.getAttribute("id");
 		return findSystemID(newID, svg);
 }
+
+function makeOnsetBeatList(midiNotes){
+	var midiOnsetBeatList = [];
+	midiNotes.filter(function(el) {
+	// If it is not a duplicate, return true
+	if (midiOnsetBeatList.indexOf(el.beatIndex) == -1) {
+		midiOnsetBeatList.push(el.beatIndex);
+		return true;
+		}
+		return false;        
+	});
+
+	midiOnsetBeatList = midiOnsetBeatList.sort(function(a,b){return a-b} );
+	// console.log(beatInPage);
+
+	return midiOnsetBeatList;
+}
+
+function calculateTempoCurveWithAdaptiveWindow(csvAudio, csvBeat, csvOnset){
+	for(var i =0, len = csvOnset.length; i<len; i++){
+		// TODO??
+	}
+}
+
 
 function removeLedger(positionList){
 	var lengthList = [];
@@ -736,7 +713,11 @@ function getAudio(url, index, artistName)
             	loadCompleted = true;
             	makeArtistButton(selectedAudioList, "#audioFile-buttons");
             	$(loadAudio).removeClass("btn btn-darkblue").addClass("btn panel-default");
-
+            	setTimeout(function(){
+            		applyVelocity2svg(xmlSvg, midiNotesList, meiNotesList);
+			        drawTempoCurve(xmlSvg, midiNotesList, meiNotesList, theData[0][1]);}
+            		, 500)
+            	
             }
 
 		}, audioFileDecodeFailed)
@@ -765,7 +746,7 @@ function getMidi(url)
     {
 		
     	timeSignature = [];
-    	midiNoteList = [];
+    	midiNotesList = [];
 		midiFile = new MIDIFile(xmlhttp.response);
 		console.log("get midi work");
 		var ticksPerBeat = midiFile.header.getTicksPerBeat();
@@ -783,20 +764,24 @@ function getMidi(url)
 				if(n==0){
 					if(midEvents[i].subtype == 88) {
 						if(j>0){
-							timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( ticksPerBeat * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ))
+							timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( ticksPerBeat * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ));
+							if (! Number.isInteger(timeSigMeasure)){
+								timeSignature[j-1][0].param2 = 6;
+								timeSigMeasure = timeSignature[j-1][2] + (absoluteTime - timeSignature[j-1][1]) / ( ticksPerBeat * timeSignature[j-1][0].param1 / Math.pow(2, timeSignature[j-1][0].param2 -2 ));
+							}
 						}
 						timeSignature[j] = [midEvents[i], absoluteTime, timeSigMeasure];
 						j++;
 					}
 				}
 				if(midEvents[i].subtype==9){
-					midiNoteList[k] = {'pitch':midEvents[i].param1, 'velocity':midEvents[i].param2 , 'beatIndex':absoluteTime/ticksPerBeat};
+					midiNotesList[k] = {'pitch':midEvents[i].param1, 'velocity':midEvents[i].param2 , 'beatIndex':absoluteTime/ticksPerBeat};
 					k++;
 				}
 				if(midEvents[i].subtype==8){
 					for(var reverseIndex = 1; reverseIndex<=k; reverseIndex++){
-						if (midiNoteList[k-reverseIndex].pitch == midEvents[i].param1 && !(midiNoteList[k-reverseIndex].endIndex)){
-							midiNoteList[k-reverseIndex].endIndex = absoluteTime/ticksPerBeat;
+						if (midiNotesList[k-reverseIndex].pitch == midEvents[i].param1 && !(midiNotesList[k-reverseIndex].endIndex)){
+							midiNotesList[k-reverseIndex].endIndex = absoluteTime/ticksPerBeat;
 						}
 					}
 				}
@@ -806,18 +791,20 @@ function getMidi(url)
 	  	rptStructure = makeRepeatInfoInMeasure(rptInfo);
 	  	measureBeat = makeMeasureInfoInBeat(rptStructure);
 	  	for (var i=0, len = rptStructure.length; i<len; i++){
-	  		midiBeat2xmlBeat[i] = measureBeat[rptStructure[i]];
-	  		xmlBeat2midiBeat[i] = measureBeat[rptStructure.indexOf(i)];
+	  		midiMeasure2xmlBeat[i] = measureBeat[rptStructure[i]];
+	  		xmlMeasure2midiBeat[i] = measureBeat[rptStructure.indexOf(i)];
 	  	}
 
 
-		noteLabel_BeatArray = meiNote2beatArray(xmlDoc);
-		midiNoteList.sort(function(a,b){ return a.beatIndex - b.beatIndex});
-		mei2midiMapArray = mei2midiMatching(midiNoteList, noteLabel_BeatArray);
+		[meiNotesList, xmlMeasureBeat] = meiNote2beatArray(xmlDoc);
+		midiNotesList.sort(function(a,b){ return a.beatIndex - b.beatIndex});
+		midiOnsetBeatList = makeOnsetBeatList(midiNotesList);
+
+		mei2midiMapArray = mei2midiMatching(midiNotesList, meiNotesList);
 
 
-        applyVelocity2svg(xmlSvg, midiNoteList, noteLabel_BeatArray)
-        drawTempoCurve(xmlSvg, midiNoteList, noteLabel_BeatArray, theData[0][1]);
+        applyVelocity2svg(xmlSvg, midiNotesList, meiNotesList)
+        drawTempoCurve(xmlSvg, midiNotesList, meiNotesList, theData[0][1]);
 
 
     }

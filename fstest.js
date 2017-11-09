@@ -28,7 +28,7 @@ var diretoryTreeToObj = function(dir, done) {
                     });
                 }
                 else {
-                    if (path.extname(file) == '.csv'){
+                    if (path.extname(file) == '.csv' && path.basename(file).split("_vel").length == 1){;
                         results.push({
                             type: 'file',
                             name: path.basename(file)
